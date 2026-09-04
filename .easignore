@@ -1,0 +1,7 @@
+source/
+.git/
+.expo/
+.claude/
+docs/
+*.md
+!README.md
