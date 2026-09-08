@@ -57,3 +57,38 @@ export function resolveCategory(attraction) {
   const name = typeof attraction === 'string' ? attraction : attraction.name;
   return matchCategoryByName(name);
 }
+
+/**
+ * Reservation model each category uses:
+ *   - ROOMS  : room bookings          → Accommodation
+ *   - TABLES : table reservations     → Food & Beverage, Entertainment and Nightlife
+ *   - SLOTS  : slot reservations      → Salons and Beauty, Games and Sports, Wellness and Fitness
+ */
+export const RESERVATION_ROOMS = 'ROOMS';
+export const RESERVATION_TABLES = 'TABLES';
+export const RESERVATION_SLOTS = 'SLOTS';
+
+const CATEGORY_TO_RESERVATION = {
+  [ACCOMMODATION]: RESERVATION_ROOMS,
+  [FOOD_BEVERAGE]: RESERVATION_TABLES,
+  [ENTERTAINMENT]: RESERVATION_TABLES,
+  [SALONS_BEAUTY]: RESERVATION_SLOTS,
+  [GAMES_SPORTS]: RESERVATION_SLOTS,
+  [WELLNESS_FITNESS]: RESERVATION_SLOTS,
+};
+
+/**
+ * Returns the reservation kind (ROOMS | TABLES | SLOTS) for a resolved
+ * category. Unknown categories default to SLOTS (the generic booking model).
+ *
+ * @param {string|null} category - a category kind (from resolveCategory)
+ * @returns {string} one of RESERVATION_ROOMS | RESERVATION_TABLES | RESERVATION_SLOTS
+ */
+export function reservationTypeFor(category) {
+  return CATEGORY_TO_RESERVATION[category] || RESERVATION_SLOTS;
+}
+
+/** Convenience predicates for the three reservation models. */
+export const usesRoomBookings = (category) => reservationTypeFor(category) === RESERVATION_ROOMS;
+export const usesTableReservations = (category) => reservationTypeFor(category) === RESERVATION_TABLES;
+export const usesSlotReservations = (category) => reservationTypeFor(category) === RESERVATION_SLOTS;

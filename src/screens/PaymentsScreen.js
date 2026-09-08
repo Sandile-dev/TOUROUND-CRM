@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import paymentService from '../api/paymentService';
-import { ACCOMMODATION, resolveCategory } from '../constants/attractions';
+import { resolveCategory, usesRoomBookings } from '../constants/attractions';
 
 const COMMISSION_RATE = 0.15;
 const DELIVERY_FEE_RATE = 0.05;
@@ -30,7 +30,7 @@ export default function PaymentsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const attractionId = resolveCategory(user?.attraction);
-  const hasReservations = attractionId && attractionId !== ACCOMMODATION;
+  const hasReservations = attractionId && !usesRoomBookings(attractionId);
   const TABS = hasReservations ? ALL_TABS : ALL_TABS.filter(t => t.id !== 'cash');
 
   const [activeTab, setActiveTab] = useState('overview');

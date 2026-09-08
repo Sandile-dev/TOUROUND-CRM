@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
-import { ACCOMMODATION, FOOD_BEVERAGE, ENTERTAINMENT, resolveCategory } from '../constants/attractions';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function AnalyticsScreen() {
   const { user } = useContext(AuthContext);
@@ -26,10 +26,10 @@ export default function AnalyticsScreen() {
   const loadAnalytics = async () => {
     try {
       let reservations = [];
-      if (attractionId === ACCOMMODATION) {
+      if (usesRoomBookings(attractionId)) {
         const res = await businessService.getBookings(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
-      } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+      } else if (usesTableReservations(attractionId)) {
         const res = await businessService.getTableReservations(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
       } else {

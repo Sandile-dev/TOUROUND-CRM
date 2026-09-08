@@ -7,7 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
-import { ACCOMMODATION, FOOD_BEVERAGE, ENTERTAINMENT, resolveCategory } from '../constants/attractions';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const ROOM_TYPES = ['SINGLE', 'DOUBLE', 'SUITE', 'TRIPLE', 'DELUXE'];
 
@@ -58,18 +58,17 @@ export default function ServicesScreen() {
   }, [user]);
 
   const getServiceType = () => {
-    const attrId = Number(attractionId);
-    if (attrId === ACCOMMODATION) return 'rooms';
-    if (attrId === FOOD_BEVERAGE || attrId === ENTERTAINMENT) return 'tables';
+    if (usesRoomBookings(attractionId)) return 'rooms';
+    if (usesTableReservations(attractionId)) return 'tables';
     return 'slots';
   };
 
   const loadItems = async () => {
     try {
       let res;
-      if (attractionId === ACCOMMODATION) {
+      if (usesRoomBookings(attractionId)) {
         res = await businessService.getRooms(user.id);
-      } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+      } else if (usesTableReservations(attractionId)) {
         res = await businessService.getTables(user.id);
       } else {
         res = await businessService.getSlots(user.id);
@@ -101,14 +100,14 @@ export default function ServicesScreen() {
     setShowForm(true);
     setServiceImages([]);
     setServiceVideos([]);
-    if (attractionId === ACCOMMODATION) {
+    if (usesRoomBookings(attractionId)) {
       setRoomType(item.roomType || '');
       setPricePerNight(String(item.pricePerNight || ''));
       setAdultCapacity(String(item.adultCapacity || ''));
       setChildCapacity(String(item.childCapacity || ''));
       setTotalNumberOfRooms(String(item.totalNumberOfRooms || ''));
       setRoomDescription(item.description || '');
-    } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+    } else if (usesTableReservations(attractionId)) {
       setCapacity(String(item.capacity || ''));
       setTotalNumberOfTables(String(item.totalNumberOfTables || ''));
       setUpfrontPaymentRequired(item.upfrontPaymentRequired || false);
@@ -153,7 +152,7 @@ export default function ServicesScreen() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      if (attractionId === ACCOMMODATION) {
+      if (usesRoomBookings(attractionId)) {
         const data = {
           roomType, pricePerNight: Number(pricePerNight),
           adultCapacity: Number(adultCapacity),
@@ -167,7 +166,7 @@ export default function ServicesScreen() {
         } else {
           await businessService.createRoom(data, serviceImages, serviceVideos);
         }
-      } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+      } else if (usesTableReservations(attractionId)) {
         const addOnsArray = tableAddOns.trim() ? tableAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const data = {
           capacity: Number(capacity), totalNumberOfTables: Number(totalNumberOfTables),
@@ -212,8 +211,8 @@ export default function ServicesScreen() {
   const handleDelete = (item) => {
     showConfirm('Delete', 'Are you sure you want to delete this?', async () => {
       try {
-        if (attractionId === ACCOMMODATION) await businessService.deleteRoom(item.id);
-        else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) await businessService.deleteTable(item.id);
+        if (usesRoomBookings(attractionId)) await businessService.deleteRoom(item.id);
+        else if (usesTableReservations(attractionId)) await businessService.deleteTable(item.id);
         else await businessService.deleteSlot(item.id);
         loadItems();
       } catch (err) {
@@ -223,7 +222,7 @@ export default function ServicesScreen() {
   };
 
   const renderForm = () => {
-    if (attractionId === ACCOMMODATION) {
+    if (usesRoomBookings(attractionId)) {
       return (
         <>
           <Text style={styles.fieldLabel}>Room Type</Text>
@@ -272,7 +271,7 @@ export default function ServicesScreen() {
           <TextInput style={styles.input} placeholder="Total Number of Rooms" placeholderTextColor="#9ca3af" keyboardType="numeric" value={totalNumberOfRooms} onChangeText={setTotalNumberOfRooms} />
         </>
       );
-    } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+    } else if (usesTableReservations(attractionId)) {
       return (
         <>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={tableDescription} onChangeText={setTableDescription} multiline />
@@ -348,7 +347,7 @@ export default function ServicesScreen() {
   };
 
   const renderItem = (item) => {
-    if (attractionId === ACCOMMODATION) {
+    if (usesRoomBookings(attractionId)) {
       return (
         <View key={item.id} style={styles.card}>
           <View style={styles.cardHeader}>
@@ -385,7 +384,7 @@ export default function ServicesScreen() {
           {renderImageThumbnails(item.imageUrls)}
         </View>
       );
-    } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+    } else if (usesTableReservations(attractionId)) {
       return (
         <View key={item.id} style={styles.card}>
           <View style={styles.cardHeader}>

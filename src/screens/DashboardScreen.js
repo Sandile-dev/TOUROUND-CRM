@@ -6,7 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
-import { ACCOMMODATION, FOOD_BEVERAGE, ENTERTAINMENT, resolveCategory } from '../constants/attractions';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -82,11 +82,11 @@ export default function DashboardScreen() {
       let reservations = [];
       let salesItems = [];
 
-      if (attractionId === ACCOMMODATION) {
+      if (usesRoomBookings(attractionId)) {
         const res = await businessService.getBookings(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
         salesItems = reservations;
-      } else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) {
+      } else if (usesTableReservations(attractionId)) {
         const res = await businessService.getTableReservations(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
         salesItems = reservations.filter(r => r.upfrontPaymentRequired);
@@ -142,7 +142,8 @@ export default function DashboardScreen() {
   useRefreshOnFocus(useCallback(() => { loadData(); }, [user]));
 
   // Chart data
-  const dateField = attractionId === ACCOMMODATION ? 'checkInDate' : 'date';
+  const isRoomBooking = usesRoomBookings(attractionId);
+  const dateField = isRoomBooking ? 'checkInDate' : 'date';
   const reservationsByDate = groupByDate(rawReservations, dateField, period);
   const revenueByDate = groupRevenueByDate(rawReservations, dateField, 'totalPrice', period);
 
@@ -210,7 +211,7 @@ export default function DashboardScreen() {
                 <View style={styles.statCard}>
                   <Text style={styles.statIcon}>📅</Text>
                   <Text style={styles.statCardValue}>{stats.totalReservations}</Text>
-                  <Text style={styles.statCardLabel}>{attractionId === ACCOMMODATION ? 'Bookings' : 'Reservations'}</Text>
+                  <Text style={styles.statCardLabel}>{isRoomBooking ? 'Bookings' : 'Reservations'}</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statIcon}>📉</Text>
@@ -240,7 +241,7 @@ export default function DashboardScreen() {
 
             {/* Reservations Trend Line Chart */}
             <View style={styles.chartSection}>
-              <Text style={styles.chartTitle}>{attractionId === ACCOMMODATION ? 'Bookings' : 'Reservations'} Trend</Text>
+              <Text style={styles.chartTitle}>{isRoomBooking ? 'Bookings' : 'Reservations'} Trend</Text>
               {trendLabels.length > 0 ? (
                 <LineChart
                   data={{ labels: trendLabels, datasets: [{ data: trendData.length > 0 ? trendData : [0] }] }}

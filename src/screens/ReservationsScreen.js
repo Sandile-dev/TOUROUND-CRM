@@ -5,7 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
-import { ACCOMMODATION, FOOD_BEVERAGE, ENTERTAINMENT, resolveCategory } from '../constants/attractions';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function ReservationsScreen() {
   const { user } = useContext(AuthContext);
@@ -24,8 +24,8 @@ export default function ReservationsScreen() {
   const loadData = async () => {
     try {
       let res;
-      if (attractionId === ACCOMMODATION) res = await businessService.getBookings(user.id);
-      else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) res = await businessService.getTableReservations(user.id);
+      if (usesRoomBookings(attractionId)) res = await businessService.getBookings(user.id);
+      else if (usesTableReservations(attractionId)) res = await businessService.getTableReservations(user.id);
       else res = await businessService.getReservations(user.id);
       setItems(Array.isArray(res) ? res : res?.content || []);
     } catch {} finally { setLoading(false); setRefreshing(false); }
@@ -39,8 +39,8 @@ export default function ReservationsScreen() {
     if (!searchRef.trim()) { loadData(); return; }
     try {
       let res;
-      if (attractionId === ACCOMMODATION) res = await businessService.getBookingByReference(searchRef.trim());
-      else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) res = await businessService.getTableReservationByReference(searchRef.trim());
+      if (usesRoomBookings(attractionId)) res = await businessService.getBookingByReference(searchRef.trim());
+      else if (usesTableReservations(attractionId)) res = await businessService.getTableReservationByReference(searchRef.trim());
       else res = await businessService.getReservationByReference(searchRef.trim());
       setItems(res ? [res] : []);
     } catch { Alert.alert('Not Found', 'No reservation with that reference.'); }
@@ -48,7 +48,7 @@ export default function ReservationsScreen() {
 
   const handleAccept = async (id) => {
     try {
-      if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) await businessService.acceptTableReservation(id);
+      if (usesTableReservations(attractionId)) await businessService.acceptTableReservation(id);
       else await businessService.acceptReservation(id);
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
@@ -57,7 +57,7 @@ export default function ReservationsScreen() {
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
     try {
-      if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) await businessService.rejectTableReservation(selectedId, rejectReason);
+      if (usesTableReservations(attractionId)) await businessService.rejectTableReservation(selectedId, rejectReason);
       else await businessService.rejectReservation(selectedId, rejectReason);
       setRejectModal(false); loadData();
     } catch (err) { Alert.alert('Error', err.message); }
@@ -65,8 +65,8 @@ export default function ReservationsScreen() {
 
   const handleCheckin = async (id) => {
     try {
-      if (attractionId === ACCOMMODATION) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_IN' });
-      else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) await businessService.checkinTableReservation(id);
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_IN' });
+      else if (usesTableReservations(attractionId)) await businessService.checkinTableReservation(id);
       else await businessService.checkinReservation(id);
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
@@ -74,8 +74,8 @@ export default function ReservationsScreen() {
 
   const handleCheckout = async (id) => {
     try {
-      if (attractionId === ACCOMMODATION) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_OUT' });
-      else if (attractionId === FOOD_BEVERAGE || attractionId === ENTERTAINMENT) await businessService.checkoutTableReservation(id);
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_OUT' });
+      else if (usesTableReservations(attractionId)) await businessService.checkoutTableReservation(id);
       else await businessService.checkoutReservation(id);
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }

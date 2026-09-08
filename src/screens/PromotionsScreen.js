@@ -4,31 +4,32 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import promotionService from '../api/promotionService';
-import { ACCOMMODATION, FOOD_BEVERAGE, ENTERTAINMENT, resolveCategory } from '../constants/attractions';
+import {
+  resolveCategory,
+  reservationTypeFor,
+  RESERVATION_ROOMS,
+  RESERVATION_TABLES,
+} from '../constants/attractions';
 
-const SERVICE_TYPE_MAP = {
-  [ACCOMMODATION]: [
+// Service filter options per reservation model.
+const SERVICE_TYPES_BY_RESERVATION = {
+  [RESERVATION_ROOMS]: [
     { value: 'ALL', label: 'All Services' },
     { value: 'ROOM', label: 'Rooms' },
     { value: 'EVENT', label: 'Tickets' },
   ],
-  [FOOD_BEVERAGE]: [
+  [RESERVATION_TABLES]: [
     { value: 'ALL', label: 'All Services' },
     { value: 'TABLE', label: 'Tables' },
     { value: 'EVENT', label: 'Tickets' },
   ],
-  [ENTERTAINMENT]: [
+  // SLOTS (Salons and Beauty, Games and Sports, Wellness and Fitness)
+  SLOTS: [
     { value: 'ALL', label: 'All Services' },
-    { value: 'TABLE', label: 'Tables' },
+    { value: 'SLOT', label: 'Slots' },
     { value: 'EVENT', label: 'Tickets' },
   ],
 };
-
-const DEFAULT_SERVICE_TYPES = [
-  { value: 'ALL', label: 'All Services' },
-  { value: 'SLOT', label: 'Slots' },
-  { value: 'EVENT', label: 'Tickets' },
-];
 
 const ALL_SERVICE_TYPES = [
   { value: 'ALL', label: 'All Services' },
@@ -48,7 +49,7 @@ export default function PromotionsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const attractionId = resolveCategory(user?.attraction);
-  const SERVICE_TYPES = SERVICE_TYPE_MAP[attractionId] || DEFAULT_SERVICE_TYPES;
+  const SERVICE_TYPES = SERVICE_TYPES_BY_RESERVATION[reservationTypeFor(attractionId)];
 
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
