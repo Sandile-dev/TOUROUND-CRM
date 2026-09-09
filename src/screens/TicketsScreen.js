@@ -307,10 +307,15 @@ export default function TicketsScreen() {
       {showForm && (
         <View style={styles.formCard}>
           <Text style={styles.formTitle}>{editingEvent ? 'Edit Event' : 'Create Event'}</Text>
+          <Text style={styles.fieldLabel}>Event Name</Text>
           <TextInput style={styles.input} placeholder="Event Name" placeholderTextColor="#9ca3af" value={eventName} onChangeText={setEventName} />
+          <Text style={styles.fieldLabel}>Date</Text>
           <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)" placeholderTextColor="#9ca3af" value={eventDate} onChangeText={setEventDate} />
+          <Text style={styles.fieldLabel}>Time</Text>
           <TextInput style={styles.input} placeholder="Time (HH:MM)" placeholderTextColor="#9ca3af" value={eventTime} onChangeText={setEventTime} />
+          <Text style={styles.fieldLabel}>Location</Text>
           <TextInput style={styles.input} placeholder="Location" placeholderTextColor="#9ca3af" value={eventLocation} onChangeText={setEventLocation} />
+          <Text style={styles.fieldLabel}>Category</Text>
           <TouchableOpacity
             style={styles.dropdownTrigger}
             activeOpacity={0.7}
@@ -321,8 +326,11 @@ export default function TicketsScreen() {
             </Text>
             <Text style={styles.dropdownCaret}>▾</Text>
           </TouchableOpacity>
+          <Text style={styles.fieldLabel}>Ticket Price</Text>
           <TextInput style={styles.input} placeholder="Ticket Price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={ticketPrice} onChangeText={setTicketPrice} />
+          <Text style={styles.fieldLabel}>Total Tickets</Text>
           <TextInput style={styles.input} placeholder="Total Tickets" placeholderTextColor="#9ca3af" keyboardType="numeric" value={totalTickets} onChangeText={setTotalTickets} />
+          <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={[styles.input, styles.textarea]} placeholder="Description" placeholderTextColor="#9ca3af" multiline numberOfLines={3} value={eventDescription} onChangeText={setEventDescription} />
 
           {/* Add Images */}
@@ -663,6 +671,7 @@ const styles = StyleSheet.create({
   formCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   formTitle: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 12 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, fontSize: 14, color: '#111827', marginBottom: 10 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   dropdownTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 10 },
   dropdownTriggerText: { fontSize: 14, color: '#111827', fontWeight: '600' },
