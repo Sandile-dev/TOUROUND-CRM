@@ -1,7 +1,7 @@
 import apiClient, { handleApiError } from './client';
 import storage from '../utils/storage';
 import env from '../config/env';
-import { appendFileList } from '../utils/fileUpload';
+import { appendFileList, sendFormData } from '../utils/fileUpload';
 
 // Helper: Build multipart request with JSON part (works with Spring Boot @RequestPart)
 async function sendMultipart(method, url, jsonFieldName, jsonData, files = {}) {
@@ -18,22 +18,9 @@ async function sendMultipart(method, url, jsonFieldName, jsonData, files = {}) {
       await appendFileList(formData, fieldName, fileList, { isVideo });
     }
 
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const response = await fetch(`${env.apiBaseUrl}${url}`, {
-      method,
-      headers,
-      body: formData,
-    });
-
-    const responseText = await response.text();
-    if (!response.ok) {
-      throw new Error(responseText || `Request failed with status ${response.status}`);
-    }
-
-    try { return JSON.parse(responseText); }
-    catch { return responseText; }
+    // Uses XHR on native (RN FormData supports { uri, type, name }) and fetch on
+    // web (Blob parts). The Expo winter fetch does NOT support RN file parts.
+    return await sendFormData(method, `${env.apiBaseUrl}${url}`, formData, { token });
   }
 
   // No files — use manual boundary approach (text-only multipart)
@@ -87,44 +74,14 @@ const businessService = {
   uploadLogo: async (formData) => {
     try {
       const token = await storage.getItem('crm_token');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const response = await fetch(`${env.apiBaseUrl}/business/profile/logo`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || 'Upload failed');
-      }
-
-      const ct = response.headers.get('content-type') || '';
-      return ct.includes('application/json') ? await response.json() : await response.text();
+      return await sendFormData('POST', `${env.apiBaseUrl}/business/profile/logo`, formData, { token });
     } catch (error) { throw handleApiError(error); }
   },
 
   uploadCover: async (formData) => {
     try {
       const token = await storage.getItem('crm_token');
-      const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const response = await fetch(`${env.apiBaseUrl}/business/profile/cover`, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || 'Upload failed');
-      }
-
-      const ct = response.headers.get('content-type') || '';
-      return ct.includes('application/json') ? await response.json() : await response.text();
+      return await sendFormData('POST', `${env.apiBaseUrl}/business/profile/cover`, formData, { token });
     } catch (error) { throw handleApiError(error); }
   },
 

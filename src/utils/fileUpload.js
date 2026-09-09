@@ -1,17 +1,25 @@
-/**
- * Shared helper for building FormData file parts that work on both
- * web (blob: / data: URIs) and mobile (file:// URIs via RN native streaming).
- */
+import { Platform } from 'react-native';
 
 /**
- * Appends a single file to a FormData instance, handling platform differences.
+ * Shared helper for multipart uploads that work on both web and native.
  *
- * @param {FormData} formData - The FormData instance to append to.
- * @param {string} fieldName - The multipart field name (e.g. 'images', 'video', 'file').
- * @param {object} file - The file object from expo-image-picker ({ uri, mimeType?, fileName?, type? }).
- * @param {object} options - Optional overrides.
- * @param {string} options.fallbackName - Fallback filename if file.fileName is absent.
- * @param {string} options.fallbackType - Fallback MIME type (default: 'image/jpeg').
+ * IMPORTANT (Expo SDK 54+): the global `fetch` is polyfilled by Expo's winter
+ * runtime, whose FormData converter does NOT support React Native's
+ * `{ uri, type, name }` file part — it throws "Unsupported FormDataPart
+ * implementation". So on native we must send multipart via XMLHttpRequest,
+ * which uses React Native's native FormData (that DOES support file URIs).
+ * On web we use fetch + real Blob objects.
+ */
+
+const isWeb = Platform.OS === 'web';
+
+/**
+ * Appends a single picked file to FormData using the correct shape per platform.
+ *
+ * @param {FormData} formData
+ * @param {string} fieldName
+ * @param {object} file - expo-image-picker asset ({ uri, mimeType?, fileName?, type? })
+ * @param {object} options - { fallbackName, fallbackType }
  */
 export async function appendFilePart(formData, fieldName, file, options = {}) {
   if (!file || !file.uri) return;
@@ -20,14 +28,13 @@ export async function appendFilePart(formData, fieldName, file, options = {}) {
   const mimeType = (file.mimeType && file.mimeType.includes('/')) ? file.mimeType : fallbackType;
   const fileName = file.fileName || fallbackName;
 
-  // Web: blob: and data: URIs must be fetched and appended as real Blob objects.
-  if (file.uri.startsWith('blob:') || file.uri.startsWith('data:')) {
+  if (isWeb) {
+    // Web: fetch the (blob:/data:/http) URI and append a real Blob.
     const resp = await fetch(file.uri);
     const blob = await resp.blob();
     formData.append(fieldName, blob, fileName);
   } else {
-    // Mobile (React Native): use the { uri, type, name } pattern.
-    // RN's native networking module resolves the file:// URI to binary.
+    // Native: RN's FormData accepts a { uri, type, name } file descriptor.
     formData.append(fieldName, {
       uri: file.uri,
       type: mimeType,
@@ -37,13 +44,12 @@ export async function appendFilePart(formData, fieldName, file, options = {}) {
 }
 
 /**
- * Appends an array of files to FormData under the same field name.
+ * Appends an array of picked files to FormData under one field name.
  *
- * @param {FormData} formData - The FormData instance.
- * @param {string} fieldName - The multipart field name.
- * @param {Array} fileList - Array of file objects from expo-image-picker.
- * @param {object} options - Optional overrides.
- * @param {boolean} options.isVideo - Whether these are video files.
+ * @param {FormData} formData
+ * @param {string} fieldName
+ * @param {Array} fileList
+ * @param {object} options - { isVideo }
  */
 export async function appendFileList(formData, fieldName, fileList, options = {}) {
   if (!Array.isArray(fileList)) return;
@@ -57,4 +63,58 @@ export async function appendFileList(formData, fieldName, fileList, options = {}
     const fallbackName = isVideo ? `video_${i}.${ext}` : `image_${i}.${ext}`;
     await appendFilePart(formData, fieldName, file, { fallbackName, fallbackType });
   }
+}
+
+/**
+ * Sends a multipart FormData request, choosing the transport that supports the
+ * FormData parts for the current platform:
+ *   - native: XMLHttpRequest (RN native FormData; supports { uri, type, name })
+ *   - web:    fetch (supports Blob parts)
+ *
+ * @param {string} method - e.g. 'POST' | 'PUT'
+ * @param {string} url - absolute URL
+ * @param {FormData} formData
+ * @param {object} options - { token }
+ * @returns {Promise<any>} parsed JSON or text response
+ */
+export function sendFormData(method, url, formData, { token } = {}) {
+  if (isWeb) {
+    return sendViaFetch(method, url, formData, token);
+  }
+  return sendViaXhr(method, url, formData, token);
+}
+
+function sendViaXhr(method, url, formData, token) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    // Do NOT set Content-Type — RN adds the multipart boundary automatically.
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { resolve(xhr.responseText); }
+      } else {
+        reject(new Error(xhr.responseText || `Request failed with status ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network request failed'));
+    xhr.send(formData);
+  });
+}
+
+async function sendViaFetch(method, url, formData, token) {
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(url, { method, headers, body: formData });
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(responseText || `Request failed with status ${response.status}`);
+  }
+
+  try { return JSON.parse(responseText); }
+  catch { return responseText; }
 }
