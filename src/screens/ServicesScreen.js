@@ -117,7 +117,8 @@ export default function ServicesScreen() {
     } else {
       setDescription(item.description || '');
       setSlotCapacity(String(item.capacity || ''));
-      setDuration(String(item.duration || ''));
+      // Backend stores duration in minutes; the form edits in hours.
+      setDuration(item.duration ? String(item.duration / 60) : '');
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
       setSlotPrice(String(item.slotPrice || ''));
       setSlotUpfrontPayment(item.upfrontPaymentRequired || false);
@@ -153,8 +154,11 @@ export default function ServicesScreen() {
     setSubmitting(true);
     try {
       if (usesRoomBookings(attractionId)) {
+        const parsedPricePerNight = parseFloat(pricePerNight);
         const data = {
-          roomType, pricePerNight: Number(pricePerNight),
+          roomType,
+          // Backend expects a raw decimal number.
+          pricePerNight: Number.isFinite(parsedPricePerNight) ? parsedPricePerNight : 0,
           adultCapacity: Number(adultCapacity),
           childCapacity: childCapacity ? Number(childCapacity) : 0,
           totalNumberOfRooms: Number(totalNumberOfRooms),
@@ -168,9 +172,12 @@ export default function ServicesScreen() {
         }
       } else if (usesTableReservations(attractionId)) {
         const addOnsArray = tableAddOns.trim() ? tableAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const parsedTablePrice = parseFloat(tablePrice);
         const data = {
           capacity: Number(capacity), totalNumberOfTables: Number(totalNumberOfTables),
-          upfrontPaymentRequired, tablePrice: Number(tablePrice),
+          upfrontPaymentRequired,
+          // Backend expects a raw decimal number.
+          tablePrice: Number.isFinite(parsedTablePrice) ? parsedTablePrice : 0,
           description: tableDescription.trim(),
           addOns: addOnsArray,
           businessUserId: user.id,
@@ -184,9 +191,12 @@ export default function ServicesScreen() {
         const addOnsArray = slotAddOns.trim() ? slotAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const servicesArray = listOfServices.trim() ? listOfServices.split(',').map(s => s.trim()).filter(Boolean) : [];
         const data = {
-          description, capacity: Number(slotCapacity), duration,
+          description, capacity: Number(slotCapacity),
+          // Duration is entered in hours; backend stores minutes.
+          duration: duration ? Math.round(Number(duration) * 60) : 0,
           listOfServices: servicesArray,
-          slotPrice: slotUpfrontPayment ? Number(slotPrice) : 0,
+          // Backend expects a raw decimal number.
+          slotPrice: Number.isFinite(parseFloat(slotPrice)) ? parseFloat(slotPrice) : 0,
           upfrontPaymentRequired: slotUpfrontPayment,
           availabilityStatus: 'available',
           addOns: addOnsArray,
@@ -264,20 +274,30 @@ export default function ServicesScreen() {
               </View>
             </TouchableOpacity>
           </Modal>
+          <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={roomDescription} onChangeText={setRoomDescription} multiline />
+          <Text style={styles.fieldLabel}>Price Per Night</Text>
           <TextInput style={styles.input} placeholder="Price Per Night" placeholderTextColor="#9ca3af" keyboardType="numeric" value={pricePerNight} onChangeText={setPricePerNight} />
+          <Text style={styles.fieldLabel}>Adult Capacity</Text>
           <TextInput style={styles.input} placeholder="Adult Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={adultCapacity} onChangeText={setAdultCapacity} />
+          <Text style={styles.fieldLabel}>Child Capacity</Text>
           <TextInput style={styles.input} placeholder="Child Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={childCapacity} onChangeText={setChildCapacity} />
+          <Text style={styles.fieldLabel}>Total Number of Rooms</Text>
           <TextInput style={styles.input} placeholder="Total Number of Rooms" placeholderTextColor="#9ca3af" keyboardType="numeric" value={totalNumberOfRooms} onChangeText={setTotalNumberOfRooms} />
         </>
       );
     } else if (usesTableReservations(attractionId)) {
       return (
         <>
+          <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={tableDescription} onChangeText={setTableDescription} multiline />
+          <Text style={styles.fieldLabel}>Capacity</Text>
           <TextInput style={styles.input} placeholder="Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={capacity} onChangeText={setCapacity} />
+          <Text style={styles.fieldLabel}>Total Number of Tables</Text>
           <TextInput style={styles.input} placeholder="Total Number of Tables" placeholderTextColor="#9ca3af" keyboardType="numeric" value={totalNumberOfTables} onChangeText={setTotalNumberOfTables} />
+          <Text style={styles.fieldLabel}>Table Price</Text>
           <TextInput style={styles.input} placeholder="Table Price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={tablePrice} onChangeText={setTablePrice} />
+          <Text style={styles.fieldLabel}>Add-Ons</Text>
           <TextInput style={styles.input} placeholder="Add-Ons (comma separated)" placeholderTextColor="#9ca3af" value={tableAddOns} onChangeText={setTableAddOns} />
           <TouchableOpacity style={styles.toggleRow} onPress={() => setUpfrontPaymentRequired(!upfrontPaymentRequired)}>
             <Text style={styles.toggleLabel}>Upfront Payment Required</Text>
@@ -290,11 +310,17 @@ export default function ServicesScreen() {
     } else {
       return (
         <>
+          <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={description} onChangeText={setDescription} />
+          <Text style={styles.fieldLabel}>Capacity</Text>
           <TextInput style={styles.input} placeholder="Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotCapacity} onChangeText={setSlotCapacity} />
-          <TextInput style={styles.input} placeholder="Duration (minutes)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={duration} onChangeText={setDuration} />
+          <Text style={styles.fieldLabel}>Duration (hours)</Text>
+          <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={duration} onChangeText={setDuration} />
+          <Text style={styles.fieldLabel}>List of Services</Text>
           <TextInput style={styles.input} placeholder="List of Services (comma separated)" placeholderTextColor="#9ca3af" value={listOfServices} onChangeText={setListOfServices} />
+          <Text style={styles.fieldLabel}>Slot Price</Text>
           <TextInput style={styles.input} placeholder="Slot Price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotPrice} onChangeText={setSlotPrice} />
+          <Text style={styles.fieldLabel}>Add-Ons</Text>
           <TextInput style={styles.input} placeholder="Add-Ons (comma separated)" placeholderTextColor="#9ca3af" value={slotAddOns} onChangeText={setSlotAddOns} />
           <TouchableOpacity style={styles.toggleRow} onPress={() => setSlotUpfrontPayment(!slotUpfrontPayment)}>
             <Text style={styles.toggleLabel}>Upfront Payment Required</Text>
@@ -446,7 +472,7 @@ export default function ServicesScreen() {
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Duration</Text>
-              <Text style={styles.detailValue}>{item.duration || 0} min</Text>
+              <Text style={styles.detailValue}>{item.duration ? (item.duration / 60) : 0} hr</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Price</Text>

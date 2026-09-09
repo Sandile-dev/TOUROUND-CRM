@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
   desc: { color: '#6b7280', fontSize: 13, marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '500', color: '#374151', marginBottom: 4, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, marginBottom: 4 },
+  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, marginBottom: 4, color: '#111827' },
   button: { backgroundColor: '#0d9488', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   buttonDisabled: { backgroundColor: '#9ca3af' },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
