@@ -187,11 +187,11 @@ const businessService = {
   },
 
   acceptReservation: async (reservationId) => {
-    try { const r = await apiClient.put(`/reservations/${reservationId}/accept`); return r.data; } catch (error) { throw handleApiError(error); }
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'ACCEPTED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   rejectReservation: async (reservationId, reason) => {
-    try { const r = await apiClient.put(`/reservations/${reservationId}/reject`, null, { params: { reason } }); return r.data; } catch (error) { throw handleApiError(error); }
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'REJECTED', reason }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   getReservationByReference: async (reference) => {
@@ -211,11 +211,11 @@ const businessService = {
   },
 
   acceptTableReservation: async (reservationId) => {
-    try { const r = await apiClient.put(`/table-reservations/${reservationId}/accept`); return r.data; } catch (error) { throw handleApiError(error); }
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'ACCEPTED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   rejectTableReservation: async (reservationId, reason) => {
-    try { const r = await apiClient.put(`/table-reservations/${reservationId}/reject`, null, { params: { reason } }); return r.data; } catch (error) { throw handleApiError(error); }
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'REJECTED', reason }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   getTableReservationByReference: async (reference) => {

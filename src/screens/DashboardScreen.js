@@ -117,7 +117,7 @@ export default function DashboardScreen() {
       let confirmed = 0, pending = 0, cancelled = 0;
       reservations.forEach(r => {
         const s = r.bookingStatus || r.reservationStatus || '';
-        if (s === 'CONFIRMED' || s === 'BOOKED' || s === 'CHECKED_IN' || s === 'CHECKED_OUT') confirmed++;
+        if (s === 'ACCEPTED' || s === 'CONFIRMED' || s === 'RESERVED' || s === 'BOOKED' || s === 'CHECKED_IN' || s === 'CHECKED_OUT') confirmed++;
         else if (s === 'CANCELLED' || s === 'REJECTED') cancelled++;
         else pending++;
       });

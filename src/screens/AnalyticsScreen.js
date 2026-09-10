@@ -45,11 +45,11 @@ export default function AnalyticsScreen() {
 
       const confirmed = reservations.filter(r => {
         const s = r.bookingStatus || r.reservationStatus || '';
-        return s === 'CONFIRMED' || s === 'CHECKED_IN' || s === 'CHECKED_OUT';
+        return s === 'ACCEPTED' || s === 'CONFIRMED' || s === 'RESERVED' || s === 'CHECKED_IN' || s === 'CHECKED_OUT';
       }).length;
       const pending = reservations.filter(r => {
         const s = r.bookingStatus || r.reservationStatus || '';
-        return s === 'PENDING';
+        return s === 'PENDING' || s === 'AWAITING_CONFIRMATION' || s === 'AWAITING_PAYMENT';
       }).length;
       const cancelled = reservations.filter(r => {
         const s = r.bookingStatus || r.reservationStatus || '';

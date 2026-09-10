@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import TopNavbar from '../components/TopNavbar';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,6 +18,9 @@ export default function ReservationsScreen() {
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+  const [detailModal, setDetailModal] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => { if (user?.id) loadData(); }, [user]);
 
@@ -34,6 +37,24 @@ export default function ReservationsScreen() {
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   useRefreshOnFocus(useCallback(() => { loadData(); }, [user]));
+
+  const openDetail = async (item) => {
+    // Show what we already have immediately, then enrich with a full fetch.
+    setDetailData(item);
+    setDetailModal(true);
+    setDetailLoading(true);
+    try {
+      let full;
+      if (usesRoomBookings(attractionId)) full = await businessService.getBookingById(item.id);
+      else if (usesTableReservations(attractionId)) full = await businessService.getTableReservationById(item.id);
+      else full = await businessService.getReservationById(item.id);
+      if (full) setDetailData({ ...item, ...full });
+    } catch {
+      // Keep the list item's data if the detail fetch fails.
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchRef.trim()) { loadData(); return; }
@@ -83,7 +104,7 @@ export default function ReservationsScreen() {
 
   const getStatus = (item) => item.bookingStatus || item.reservationStatus || 'PENDING';
   const getStatusStyle = (status) => {
-    if (status === 'CONFIRMED' || status === 'BOOKED') return { bg: '#dcfce7', text: '#166534' };
+    if (status === 'ACCEPTED' || status === 'CONFIRMED' || status === 'RESERVED' || status === 'BOOKED') return { bg: '#dcfce7', text: '#166534' };
     if (status === 'CHECKED_IN') return { bg: '#dbeafe', text: '#1e40af' };
     if (status === 'CHECKED_OUT') return { bg: '#f3f4f6', text: '#374151' };
     if (status === 'CANCELLED' || status === 'REJECTED') return { bg: '#fef2f2', text: '#991b1b' };
@@ -97,7 +118,7 @@ export default function ReservationsScreen() {
     const date = item.checkInDate || item.date || item.createdAt;
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => openDetail(item)}>
         <View style={styles.cardTop}>
           <View style={{ flex: 1 }}>
             <Text style={styles.refText}>{ref}</Text>
@@ -114,7 +135,7 @@ export default function ReservationsScreen() {
         </View>
 
         {/* Actions */}
-        {(status === 'PENDING' || status === 'AWAITING_CONFIRMATION') && (
+        {(status === 'PENDING' || status === 'AWAITING_CONFIRMATION' || status === 'AWAITING_PAYMENT') && (
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]} onPress={() => handleAccept(item.id)}>
               <Text style={styles.actionText}>Accept</Text>
@@ -124,7 +145,7 @@ export default function ReservationsScreen() {
             </TouchableOpacity>
           </View>
         )}
-        {(status === 'CONFIRMED' || status === 'BOOKED') && (
+        {(status === 'ACCEPTED' || status === 'CONFIRMED' || status === 'RESERVED' || status === 'BOOKED') && (
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => handleCheckin(item.id)}>
               <Text style={styles.actionText}>Check In</Text>
@@ -138,7 +159,7 @@ export default function ReservationsScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -174,6 +195,62 @@ export default function ReservationsScreen() {
           ListEmptyComponent={<Text style={styles.emptyText}>No reservations found.</Text>}
         />
       )}
+
+      {/* Detail Modal */}
+      <Modal visible={detailModal} transparent animationType="slide" onRequestClose={() => setDetailModal(false)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailSheet}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle}>Reservation Details</Text>
+              <TouchableOpacity onPress={() => setDetailModal(false)}>
+                <Text style={styles.detailClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {detailLoading && !detailData ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ paddingVertical: 30 }} />
+            ) : detailData ? (
+              <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+                {(() => {
+                  const d = detailData;
+                  const ref = d.bookingReference || d.reservationReference || `#${d.id}`;
+                  const st = getStatus(d);
+                  const stStyle = getStatusStyle(st);
+                  const rows = [
+                    ['Reference', ref],
+                    ['Status', st],
+                    ['Customer', d.customerName || d.guestName || d.customerFullName || '—'],
+                    ['Email', d.customerEmail || d.email || '—'],
+                    ['Phone', d.customerPhone || d.contactNumber || '—'],
+                    ['Guests', d.numberOfGuests != null ? String(d.numberOfGuests) : '—'],
+                    ['Check-in', d.checkInDate ? new Date(d.checkInDate).toLocaleDateString() : '—'],
+                    ['Check-out', d.checkOutDate ? new Date(d.checkOutDate).toLocaleDateString() : '—'],
+                    ['Date', d.date ? new Date(d.date).toLocaleDateString() : '—'],
+                    ['Time', d.time || '—'],
+                    ['Amount', `R${d.totalPrice || 0}`],
+                  ];
+                  return (
+                    <>
+                      <View style={[styles.detailBadge, { backgroundColor: stStyle.bg, alignSelf: 'flex-start' }]}>
+                        <Text style={[styles.badgeText, { color: stStyle.text }]}>{st}</Text>
+                      </View>
+                      {rows.map(([label, value]) => (
+                        <View key={label} style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>{label}</Text>
+                          <Text style={styles.detailValue}>{value}</Text>
+                        </View>
+                      ))}
+                      {detailLoading && <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 10 }} />}
+                    </>
+                  );
+                })()}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptyText}>No details available.</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Reject Modal */}
       <Modal visible={rejectModal} transparent animationType="fade">
@@ -232,4 +309,14 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
   modalCancel: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: '#f3f4f6' },
   modalConfirm: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  // Detail modal
+  detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  detailSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32, maxHeight: '85%' },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  detailTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  detailClose: { fontSize: 22, color: '#6b7280', padding: 4 },
+  detailBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, marginBottom: 12 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  detailLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  detailValue: { fontSize: 14, color: '#111827', fontWeight: '600', flexShrink: 1, textAlign: 'right' },
 });

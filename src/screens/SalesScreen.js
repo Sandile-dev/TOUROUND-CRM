@@ -85,11 +85,11 @@ export default function SalesScreen() {
   const totalRevenue = sales
     .filter(s => { const st = getStatus(s); return st !== 'CANCELLED' && st !== 'REJECTED'; })
     .reduce((sum, s) => sum + (s.totalPrice || 0), 0);
-  const confirmedCount = sales.filter(s => getStatus(s) === 'CONFIRMED' || getStatus(s) === 'CHECKED_IN' || getStatus(s) === 'CHECKED_OUT').length;
-  const pendingCount = sales.filter(s => getStatus(s) === 'PENDING').length;
+  const confirmedCount = sales.filter(s => ['ACCEPTED', 'CONFIRMED', 'RESERVED', 'CHECKED_IN', 'CHECKED_OUT'].includes(getStatus(s))).length;
+  const pendingCount = sales.filter(s => getStatus(s) === 'PENDING' || getStatus(s) === 'AWAITING_CONFIRMATION' || getStatus(s) === 'AWAITING_PAYMENT').length;
 
   const getStatusColor = (status) => {
-    const map = { CONFIRMED: '#16a34a', PENDING: '#f59e0b', CANCELLED: '#dc2626', REJECTED: '#dc2626', CHECKED_IN: '#2563eb', CHECKED_OUT: '#6b7280' };
+    const map = { ACCEPTED: '#16a34a', CONFIRMED: '#16a34a', RESERVED: '#16a34a', PENDING: '#f59e0b', AWAITING_CONFIRMATION: '#f59e0b', AWAITING_PAYMENT: '#f59e0b', CANCELLED: '#dc2626', REJECTED: '#dc2626', CHECKED_IN: '#2563eb', CHECKED_OUT: '#6b7280' };
     return map[status] || '#6b7280';
   };
 
