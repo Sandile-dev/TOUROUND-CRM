@@ -2,8 +2,8 @@
   "expo": {
     "name": "Touround CRM",
     "slug": "touround-crm-mobile",
-    "version": "1.0.2",
-    "runtimeVersion": "1.0.2",
+    "version": "1.0.3",
+    "runtimeVersion": "1.0.3",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -33,7 +33,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.touround.touround_crm",
-      "versionCode": 9,
+      "versionCode": 10,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
