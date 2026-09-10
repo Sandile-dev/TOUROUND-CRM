@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, StyleSheet, Alert, RefreshControl, Modal, Platform, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -502,7 +503,7 @@ export default function TicketsScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView style={styles.screen} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <KeyboardAwareScroll style={styles.screen} contentContainerStyle={styles.screenContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
@@ -530,7 +531,7 @@ export default function TicketsScreen() {
         </View>
 
         {activeTab === 'events' ? renderEventsTab() : renderScannerTab()}
-      </ScrollView>
+      </KeyboardAwareScroll>
 
       {/* QR Scanner Modal */}
       {showQRScanner && BarCodeScanner && (
@@ -655,7 +656,8 @@ export default function TicketsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f3f2ef', padding: 16 },
+  screen: { flex: 1, backgroundColor: '#f3f2ef' },
+  screenContent: { padding: 16, paddingBottom: 140 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 40, marginBottom: 16 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },

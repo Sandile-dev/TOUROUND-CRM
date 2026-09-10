@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import LocationPicker from '../components/LocationPicker';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import { appendFilePart } from '../utils/fileUpload';
 
 export default function SettingsScreen() {
@@ -121,7 +122,7 @@ export default function SettingsScreen() {
   const initial = user?.name?.charAt(0)?.toUpperCase() || 'B';
 
   return (
-    <ScrollView style={styles.screen}>
+    <KeyboardAwareScroll style={styles.screen}>
       {/* Facebook-style cover + avatar */}
       <View style={styles.coverContainer}>
         <TouchableOpacity onPress={pickCover} activeOpacity={0.8}>
@@ -228,7 +229,7 @@ export default function SettingsScreen() {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

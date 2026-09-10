@@ -84,8 +84,8 @@ export default function RegisterScreen({ navigation }) {
 
   if (step === 'verify') {
     return (
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.logo}>Touround CRM</Text>
           <Text style={styles.subtitle}>Verify your email</Text>
@@ -135,8 +135,8 @@ export default function RegisterScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.logo}>Touround CRM</Text>
         <Text style={styles.subtitle}>Register your business</Text>
@@ -233,7 +233,7 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#111827', padding: 20, paddingVertical: 40, alignItems: 'center' },
+  container: { flexGrow: 1, backgroundColor: '#111827', padding: 20, paddingTop: 40, paddingBottom: 160, alignItems: 'center' },
   header: { alignItems: 'center', marginBottom: 24 },
   logo: { fontSize: 28, fontWeight: 'bold', color: '#2dd4bf' },
   subtitle: { color: '#9ca3af', marginTop: 4 },

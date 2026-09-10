@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, RefreshControl, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import staffService from '../api/staffService';
@@ -275,12 +276,11 @@ export default function StaffScreen() {
         </TouchableOpacity>
       </View>
 
-      {renderCreateForm()}
-
       {loading ? (
         <Text style={styles.loadingText}>Loading staff...</Text>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 30 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 140 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+          {renderCreateForm()}
           {staff.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={{ fontSize: 24, marginBottom: 8 }}>👥</Text>
@@ -314,7 +314,7 @@ export default function StaffScreen() {
               );
             })}
           </View>
-        </ScrollView>
+        </KeyboardAwareScroll>
       )}
     </View>
   );

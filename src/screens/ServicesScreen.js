@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const ROOM_TYPES = ['SINGLE', 'DOUBLE', 'SUITE', 'TRIPLE', 'DELUXE'];
@@ -494,7 +495,7 @@ export default function ServicesScreen() {
   const navigation = useNavigation();
 
   return (
-    <ScrollView style={styles.screen} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+    <KeyboardAwareScroll style={styles.screen} contentContainerStyle={styles.screenContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {/* Header with back arrow */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
@@ -553,12 +554,13 @@ export default function ServicesScreen() {
       ) : (
         items.map(renderItem)
       )}
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f3f2ef', padding: 16 },
+  screen: { flex: 1, backgroundColor: '#f3f2ef' },
+  screenContent: { padding: 16, paddingBottom: 140 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 40, marginBottom: 16 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
