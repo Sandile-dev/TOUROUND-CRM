@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, StyleShe
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import DatePickerField from '../components/DatePickerField';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -12,7 +13,11 @@ if (Platform.OS !== 'web') {
   try { BarCodeScanner = require('expo-barcode-scanner').BarCodeScanner; } catch {}
 }
 
-// Event category enum values expected by the backend.
+// Default event category classification id (the `events.categoryId` field).
+// The backend's create-event contract requires a categoryId on the event.
+const EVENT_CATEGORY_ID = 1;
+
+// Ticket category tier names (per-event ticket types).
 const EVENT_CATEGORIES = [
   'GENERAL',
   'VIP',
@@ -42,13 +47,12 @@ export default function TicketsScreen() {
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [eventLocation, setEventLocation] = useState('');
-  const [category, setCategory] = useState('');
   const [eventDescription, setEventDescription] = useState('');
-  const [ticketPrice, setTicketPrice] = useState('');
-  const [totalTickets, setTotalTickets] = useState('');
 
-  // Category dropdown open state
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  // Inline ticket categories for the event form. Each: { name, price, totalTickets }.
+  const [eventCategories, setEventCategories] = useState([{ name: '', price: '', totalTickets: '' }]);
+  // Which category row's dropdown is open (index), or null.
+  const [openCategoryRow, setOpenCategoryRow] = useState(null);
 
   // Event media
   const [eventImages, setEventImages] = useState([]);
@@ -108,8 +112,9 @@ export default function TicketsScreen() {
 
   const resetForm = () => {
     setEventName(''); setEventDate(''); setEventTime('');
-    setEventLocation(''); setCategory(''); setEventDescription('');
-    setTicketPrice(''); setTotalTickets('');
+    setEventLocation(''); setEventDescription('');
+    setEventCategories([{ name: '', price: '', totalTickets: '' }]);
+    setOpenCategoryRow(null);
     setEventImages([]); setEventVideos([]);
     setEditingEvent(null); setShowForm(false);
   };
@@ -121,20 +126,27 @@ export default function TicketsScreen() {
     setEventDate(event.date || event.eventDate || '');
     setEventTime(event.time || event.eventTime || '');
     setEventLocation(event.location || event.venue || '');
-    // Category is an enum string. Prefer the backend's tickeCategoryType field,
-    // falling back to other shapes for resilience.
-    setCategory(
-      event.tickeCategoryType
-      || event.ticketCategoryType
-      || event.category?.name
-      || event.categoryName
-      || (typeof event.category === 'string' ? event.category : '')
-    );
     setEventDescription(event.description || '');
-    setTicketPrice(String(event.ticketPrice || ''));
-    setTotalTickets(String(event.totalTickets || ''));
+    // Pre-fill ticket categories from the event's existing categories, if any.
+    const existing = event.ticketCategories || event.categories || [];
+    if (Array.isArray(existing) && existing.length > 0) {
+      setEventCategories(existing.map((c) => ({
+        name: c.name || c.type || c.tickeCategoryType || '',
+        price: String(c.price ?? ''),
+        totalTickets: String(c.totalTickets ?? c.remainingTickets ?? ''),
+      })));
+    } else {
+      setEventCategories([{ name: '', price: '', totalTickets: '' }]);
+    }
+    setOpenCategoryRow(null);
     setShowForm(true);
   };
+
+  // Inline event-category row helpers
+  const addEventCategoryRow = () => setEventCategories((prev) => [...prev, { name: '', price: '', totalTickets: '' }]);
+  const removeEventCategoryRow = (index) => setEventCategories((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index));
+  const updateEventCategoryRow = (index, field, value) =>
+    setEventCategories((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
 
   const validateDate = (dateStr) => {
     if (!dateStr.trim()) return true; // optional
@@ -156,6 +168,27 @@ export default function TicketsScreen() {
       Alert.alert('Error', 'Event date must be a valid date (YYYY-MM-DD) today or in the future');
       return;
     }
+
+    // Validate ticket categories: keep only rows with a selected category,
+    // and ensure each has a valid price and ticket count.
+    const filledCategories = eventCategories.filter((c) => c.name);
+    for (const c of filledCategories) {
+      if (c.price === '' || isNaN(Number(c.price))) {
+        Alert.alert('Error', `Enter a valid price for category "${c.name}"`);
+        return;
+      }
+      if (c.totalTickets === '' || isNaN(Number(c.totalTickets))) {
+        Alert.alert('Error', `Enter a valid ticket count for category "${c.name}"`);
+        return;
+      }
+    }
+    // Guard against the same category picked twice.
+    const names = filledCategories.map((c) => c.name);
+    if (new Set(names).size !== names.length) {
+      Alert.alert('Error', 'Each ticket category can only be added once');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const data = {
@@ -164,18 +197,17 @@ export default function TicketsScreen() {
         eventTime: eventTime.trim(),
         location: eventLocation.trim(),
         description: eventDescription.trim(),
+        // Event's own category classification (distinct from ticket categories).
+        categoryId: EVENT_CATEGORY_ID,
         businessUserId: user.id,
       };
-      // Backend field is spelled "tickeCategoryType" (per API contract).
-      if (category) data.tickeCategoryType = category;
-      if (ticketPrice.trim()) data.ticketPrice = Number(ticketPrice);
-      if (totalTickets.trim()) data.totalTickets = Number(totalTickets);
 
+      let eventId = editingEvent?.id;
       if (editingEvent) {
         await businessService.updateEvent(editingEvent.id, data, eventImages, eventVideos);
-        Alert.alert('Success', 'Event updated');
       } else {
-        await businessService.createEvent(data, eventImages, eventVideos);
+        const created = await businessService.createEvent(data, eventImages, eventVideos);
+        eventId = created?.id ?? created?.eventId ?? eventId;
         // Auto-create an EVENT post
         try {
           const postData = {
@@ -187,8 +219,23 @@ export default function TicketsScreen() {
           };
           await businessService.createPost(postData, [], []);
         } catch {}
-        Alert.alert('Success', 'Event created');
       }
+
+      // Attach ticket categories (each with its own price and count).
+      if (eventId != null && filledCategories.length > 0) {
+        for (const c of filledCategories) {
+          try {
+            await businessService.addTicketCategory({
+              eventId,
+              name: c.name,
+              price: Number(c.price),
+              totalTickets: Number(c.totalTickets),
+            });
+          } catch {}
+        }
+      }
+
+      Alert.alert('Success', editingEvent ? 'Event updated' : 'Event created');
       resetForm();
       loadEvents();
     } catch (err) {
@@ -311,26 +358,56 @@ export default function TicketsScreen() {
           <Text style={styles.fieldLabel}>Event Name</Text>
           <TextInput style={styles.input} placeholder="Event Name" placeholderTextColor="#9ca3af" value={eventName} onChangeText={setEventName} />
           <Text style={styles.fieldLabel}>Date</Text>
-          <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)" placeholderTextColor="#9ca3af" value={eventDate} onChangeText={setEventDate} />
+          <DatePickerField value={eventDate} onChange={setEventDate} placeholder="Select event date" />
           <Text style={styles.fieldLabel}>Time</Text>
           <TextInput style={styles.input} placeholder="Time (HH:MM)" placeholderTextColor="#9ca3af" value={eventTime} onChangeText={setEventTime} />
           <Text style={styles.fieldLabel}>Location</Text>
           <TextInput style={styles.input} placeholder="Location" placeholderTextColor="#9ca3af" value={eventLocation} onChangeText={setEventLocation} />
-          <Text style={styles.fieldLabel}>Category</Text>
-          <TouchableOpacity
-            style={styles.dropdownTrigger}
-            activeOpacity={0.7}
-            onPress={() => setCategoryDropdownOpen(true)}
-          >
-            <Text style={[styles.dropdownTriggerText, !category && styles.dropdownPlaceholder]}>
-              {category || 'Select category'}
-            </Text>
-            <Text style={styles.dropdownCaret}>▾</Text>
+
+          {/* Ticket categories — multiple per event, each with its own price and count */}
+          <Text style={styles.fieldLabel}>Ticket Categories</Text>
+          {eventCategories.map((cat, index) => (
+            <View key={index} style={styles.ticketCatCard}>
+              <View style={styles.ticketCatHeader}>
+                <Text style={styles.ticketCatLabel}>Category {index + 1}</Text>
+                {eventCategories.length > 1 && (
+                  <TouchableOpacity onPress={() => removeEventCategoryRow(index)}>
+                    <Text style={styles.ticketCatRemove}>Remove</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.dropdownTrigger}
+                activeOpacity={0.7}
+                onPress={() => setOpenCategoryRow(index)}
+              >
+                <Text style={[styles.dropdownTriggerText, !cat.name && styles.dropdownPlaceholder]}>
+                  {cat.name || 'Select category'}
+                </Text>
+                <Text style={styles.dropdownCaret}>▾</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder="Price"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={cat.price}
+                onChangeText={(v) => updateEventCategoryRow(index, 'price', v)}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Number of tickets"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                value={cat.totalTickets}
+                onChangeText={(v) => updateEventCategoryRow(index, 'totalTickets', v)}
+              />
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addRowBtn} onPress={addEventCategoryRow}>
+            <Text style={[styles.addRowBtnText, { color: colors.primary }]}>+ Add Another Category</Text>
           </TouchableOpacity>
-          <Text style={styles.fieldLabel}>Ticket Price</Text>
-          <TextInput style={styles.input} placeholder="Ticket Price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={ticketPrice} onChangeText={setTicketPrice} />
-          <Text style={styles.fieldLabel}>Total Tickets</Text>
-          <TextInput style={styles.input} placeholder="Total Tickets" placeholderTextColor="#9ca3af" keyboardType="numeric" value={totalTickets} onChangeText={setTotalTickets} />
+
           <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={[styles.input, styles.textarea]} placeholder="Description" placeholderTextColor="#9ca3af" multiline numberOfLines={3} value={eventDescription} onChangeText={setEventDescription} />
 
@@ -553,31 +630,44 @@ export default function TicketsScreen() {
 
       {/* Category dropdown Modal */}
       <Modal
-        visible={categoryDropdownOpen}
+        visible={openCategoryRow !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setCategoryDropdownOpen(false)}
+        onRequestClose={() => setOpenCategoryRow(null)}
       >
         <TouchableOpacity
           style={styles.dropdownOverlay}
           activeOpacity={1}
-          onPress={() => setCategoryDropdownOpen(false)}
+          onPress={() => setOpenCategoryRow(null)}
         >
           <View style={styles.dropdownMenu}>
             <Text style={styles.dropdownMenuTitle}>Select Category</Text>
             <ScrollView style={{ maxHeight: 320 }}>
-              {EVENT_CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={styles.dropdownOption}
-                  onPress={() => { setCategory(cat); setCategoryDropdownOpen(false); }}
-                >
-                  <Text style={[styles.dropdownOptionText, category === cat && { color: colors.primary, fontWeight: '700' }]}>
-                    {cat}
-                  </Text>
-                  {category === cat && <Text style={[styles.dropdownCheck, { color: colors.primary }]}>✓</Text>}
-                </TouchableOpacity>
-              ))}
+              {EVENT_CATEGORIES.map((cat) => {
+                const current = openCategoryRow !== null ? eventCategories[openCategoryRow]?.name : null;
+                // Disable categories already chosen in other rows.
+                const usedElsewhere = eventCategories.some((c, i) => i !== openCategoryRow && c.name === cat);
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={styles.dropdownOption}
+                    disabled={usedElsewhere}
+                    onPress={() => {
+                      if (openCategoryRow !== null) updateEventCategoryRow(openCategoryRow, 'name', cat);
+                      setOpenCategoryRow(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownOptionText,
+                      current === cat && { color: colors.primary, fontWeight: '700' },
+                      usedElsewhere && { color: '#d1d5db' },
+                    ]}>
+                      {cat}{usedElsewhere ? '  (added)' : ''}
+                    </Text>
+                    {current === cat && <Text style={[styles.dropdownCheck, { color: colors.primary }]}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -674,6 +764,10 @@ const styles = StyleSheet.create({
   formTitle: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 12 },
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, fontSize: 14, color: '#111827', marginBottom: 10 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  ticketCatCard: { backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+  ticketCatHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  ticketCatLabel: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+  ticketCatRemove: { fontSize: 12, color: '#dc2626', fontWeight: '600' },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   dropdownTrigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, marginBottom: 10 },
   dropdownTriggerText: { fontSize: 14, color: '#111827', fontWeight: '600' },
