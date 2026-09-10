@@ -44,13 +44,38 @@ export default function ReservationsScreen() {
     setDetailModal(true);
     setDetailLoading(true);
     try {
-      let full;
-      if (usesRoomBookings(attractionId)) full = await businessService.getBookingById(item.id);
-      else if (usesTableReservations(attractionId)) full = await businessService.getTableReservationById(item.id);
-      else full = await businessService.getReservationById(item.id);
-      if (full) setDetailData({ ...item, ...full });
+      // Fetch the full reservation and the customer profile in parallel.
+      const reservationCall = usesRoomBookings(attractionId)
+        ? businessService.getBookingById(item.id)
+        : usesTableReservations(attractionId)
+          ? businessService.getTableReservationById(item.id)
+          : businessService.getReservationById(item.id);
+
+      const customerId = item.customerId ?? item.customerUserId;
+      const customerCall = customerId != null
+        ? businessService.getCustomerProfile(customerId)
+        : Promise.resolve(null);
+
+      const [reservationRes, customerRes] = await Promise.allSettled([reservationCall, customerCall]);
+
+      let merged = { ...item };
+      if (reservationRes.status === 'fulfilled' && reservationRes.value) {
+        merged = { ...merged, ...reservationRes.value };
+      }
+      if (customerRes.status === 'fulfilled' && customerRes.value) {
+        const c = customerRes.value;
+        // Map the customer profile onto the field names the detail modal reads.
+        merged.customerName = merged.customerName
+          || c.name
+          || [c.firstName, c.lastName].filter(Boolean).join(' ').trim()
+          || c.fullName
+          || merged.customerName;
+        merged.customerEmail = merged.customerEmail || c.email;
+        merged.customerPhone = merged.customerPhone || c.phoneNumber || c.contactNumber || c.phone;
+      }
+      setDetailData(merged);
     } catch {
-      // Keep the list item's data if the detail fetch fails.
+      // Keep the list item's data if enrichment fails.
     } finally {
       setDetailLoading(false);
     }
@@ -69,7 +94,8 @@ export default function ReservationsScreen() {
 
   const handleAccept = async (id) => {
     try {
-      if (usesTableReservations(attractionId)) await businessService.acceptTableReservation(id);
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'BOOKED' });
+      else if (usesTableReservations(attractionId)) await businessService.acceptTableReservation(id);
       else await businessService.acceptReservation(id);
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
@@ -78,7 +104,8 @@ export default function ReservationsScreen() {
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
     try {
-      if (usesTableReservations(attractionId)) await businessService.rejectTableReservation(selectedId, rejectReason);
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(selectedId, { bookingStatus: 'CANCELLED', reason: rejectReason });
+      else if (usesTableReservations(attractionId)) await businessService.rejectTableReservation(selectedId, rejectReason);
       else await businessService.rejectReservation(selectedId, rejectReason);
       setRejectModal(false); loadData();
     } catch (err) { Alert.alert('Error', err.message); }
@@ -216,19 +243,28 @@ export default function ReservationsScreen() {
                   const ref = d.bookingReference || d.reservationReference || `#${d.id}`;
                   const st = getStatus(d);
                   const stStyle = getStatusStyle(st);
+                  // Build rows from fields the reservation actually returns.
+                  // Only include a row when the value is present.
+                  const customerName = d.customerName || d.guestName || d.customerFullName;
+                  const customerEmail = d.customerEmail || d.email;
+                  const customerPhone = d.customerPhone || d.contactNumber;
                   const rows = [
                     ['Reference', ref],
                     ['Status', st],
-                    ['Customer', d.customerName || d.guestName || d.customerFullName || '—'],
-                    ['Email', d.customerEmail || d.email || '—'],
-                    ['Phone', d.customerPhone || d.contactNumber || '—'],
-                    ['Guests', d.numberOfGuests != null ? String(d.numberOfGuests) : '—'],
-                    ['Check-in', d.checkInDate ? new Date(d.checkInDate).toLocaleDateString() : '—'],
-                    ['Check-out', d.checkOutDate ? new Date(d.checkOutDate).toLocaleDateString() : '—'],
-                    ['Date', d.date ? new Date(d.date).toLocaleDateString() : '—'],
-                    ['Time', d.time || '—'],
+                    d.paymentStatus ? ['Payment', d.paymentStatus] : null,
+                    customerName ? ['Customer', customerName] : null,
+                    customerEmail ? ['Email', customerEmail] : null,
+                    customerPhone ? ['Phone', customerPhone] : null,
+                    (customerName || customerEmail || customerPhone) ? null
+                      : (d.customerId != null ? ['Customer ID', String(d.customerId)] : null),
+                    d.numberOfGuests != null ? ['Guests', String(d.numberOfGuests)] : null,
+                    d.date ? ['Date', new Date(d.date).toLocaleDateString()] : null,
+                    d.time ? ['Time', d.time] : null,
+                    d.checkInDate ? ['Check-in', new Date(d.checkInDate).toLocaleDateString()] : null,
+                    d.checkOutDate ? ['Check-out', new Date(d.checkOutDate).toLocaleDateString()] : null,
                     ['Amount', `R${d.totalPrice || 0}`],
-                  ];
+                    d.createdAt ? ['Requested', new Date(d.createdAt).toLocaleString()] : null,
+                  ].filter(Boolean);
                   return (
                     <>
                       <View style={[styles.detailBadge, { backgroundColor: stStyle.bg, alignSelf: 'flex-start' }]}>
