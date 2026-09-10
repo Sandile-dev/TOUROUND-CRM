@@ -1,8 +1,10 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import businessService from '../api/businessService';
 import ProfileModal from './ProfileModal';
 
 export default function TopNavbar() {
@@ -10,6 +12,20 @@ export default function TopNavbar() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const [profileVisible, setProfileVisible] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadUnread = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await businessService.getNotifications(user.id);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      const count = list.filter((n) => n.read === false || n.isRead === false).length;
+      setUnreadCount(count);
+    } catch {}
+  }, [user]);
+
+  // Refresh the unread count whenever a screen using the navbar gains focus.
+  useFocusEffect(useCallback(() => { loadUnread(); }, [loadUnread]));
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || 'B';
 
@@ -37,6 +53,11 @@ export default function TopNavbar() {
           onPress={() => navigation.navigate('MoreTab', { screen: 'Notifications' })}
         >
           <Text style={styles.notifIcon}>🔔</Text>
+          {unreadCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -78,4 +99,19 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16, color: '#111827', padding: 0 },
   notifBtn: { padding: 8 },
   notifIcon: { fontSize: 24 },
+  notifBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  notifBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
 });

@@ -6,6 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function MessagesScreen() {
   const { user } = useContext(AuthContext);
@@ -40,23 +41,52 @@ export default function MessagesScreen() {
       const grouped = {};
       list.forEach((msg) => {
         const key = msg.customerUserId || msg.senderId;
+        if (key == null) return;
+        const msgDate = new Date(msg.createdAt || msg.sentAt || 0).getTime();
+        // Count as unread only if it's an incoming (customer) message that's unread.
+        const incomingUnread =
+          msg.read === false &&
+          (msg.senderType ? String(msg.senderType).toUpperCase() !== 'BUSINESS' : true);
+
         if (!grouped[key]) {
           grouped[key] = {
             customerId: key,
             customerName: msg.customerName || msg.senderName || 'Customer',
             lastMessage: msg.content || msg.message || '',
             lastDate: msg.createdAt || msg.sentAt,
-            unread: msg.read === false ? 1 : 0,
+            _lastTs: msgDate,
+            unread: incomingUnread ? 1 : 0,
           };
         } else {
-          if (msg.read === false) grouped[key].unread++;
+          if (incomingUnread) grouped[key].unread++;
+          // Keep the most recent message as the preview.
+          if (msgDate >= grouped[key]._lastTs) {
+            grouped[key].lastMessage = msg.content || msg.message || '';
+            grouped[key].lastDate = msg.createdAt || msg.sentAt;
+            grouped[key]._lastTs = msgDate;
+          }
+          if (!grouped[key].customerName || grouped[key].customerName === 'Customer') {
+            grouped[key].customerName = msg.customerName || msg.senderName || grouped[key].customerName;
+          }
         }
       });
-      setConversations(Object.values(grouped));
+      // Sort conversations by most recent activity.
+      const convList = Object.values(grouped).sort((a, b) => (b._lastTs || 0) - (a._lastTs || 0));
+      setConversations(convList);
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Determine if a message was sent by the business (this user) rather than the customer.
+  // Rely on senderType/sender id — NOT businessUserId, since every message in a
+  // business↔customer thread carries the same businessUserId.
+  const isOwnMessage = (msg) => {
+    if (msg.senderType) return String(msg.senderType).toUpperCase() === 'BUSINESS';
+    const senderId = msg.senderId ?? msg.senderUserId ?? msg.fromUserId;
+    if (senderId != null) return String(senderId) === String(user.id);
+    return false;
   };
 
   const openConversation = async (conv) => {
@@ -66,33 +96,58 @@ export default function MessagesScreen() {
       const list = Array.isArray(res) ? res : res?.content || [];
       setMessages(list);
 
-      // Mark unread incoming messages as read
+      // Mark unread incoming (customer -> business) messages as read
+      let markedAny = false;
       for (const msg of list) {
-        const isIncoming = msg.senderType !== 'BUSINESS' && msg.businessUserId !== user.id;
+        const isIncoming = !isOwnMessage(msg);
         if (isIncoming && msg.read === false && msg.id) {
           try {
             await businessService.markMessageRead(msg.id);
+            markedAny = true;
           } catch {}
         }
       }
+      // Refresh the conversation list so the unread badge clears.
+      if (markedAny) loadConversations();
     } catch {
       setMessages([]);
     }
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    const text = newMessage.trim();
+    if (!text || sending) return;
     setSending(true);
+
+    // Optimistic append so the message appears immediately.
+    const optimistic = {
+      id: `local-${Date.now()}`,
+      content: text,
+      senderType: 'BUSINESS',
+      businessUserId: user.id,
+      customerUserId: selectedConversation.customerId,
+      createdAt: new Date().toISOString(),
+      read: true,
+      _pending: true,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setNewMessage('');
+
     try {
       await businessService.sendMessage({
-        content: newMessage.trim(),
+        content: text,
         businessUserId: user.id,
         customerUserId: selectedConversation.customerId,
         senderType: 'BUSINESS',
       });
-      setNewMessage('');
-      openConversation(selectedConversation);
-    } catch {} finally {
+      // Reconcile with the server copy.
+      await openConversation(selectedConversation);
+    } catch (err) {
+      // Roll back the optimistic message and restore the draft.
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setNewMessage(text);
+      Alert.alert('Error', err.message || 'Failed to send message');
+    } finally {
       setSending(false);
     }
   };
@@ -101,24 +156,59 @@ export default function MessagesScreen() {
     if (!customerSearch.trim()) { Alert.alert('Error', 'Please enter an email or phone number'); return; }
     setSearchingCustomer(true);
     setFoundCustomer(null);
-    try {
-      // Search through followers/customers to find by email or phone
-      const res = await businessService.getFollowers(user.id);
+
+    const query = customerSearch.trim().toLowerCase();
+    const attractionId = resolveCategory(user?.attraction);
+
+    // Normalize any customer-like record into { id, name, email, phone }.
+    const normalize = (c) => ({
+      id: c.customerId ?? c.customerUserId ?? c.userId ?? c.id ?? c.senderId,
+      name: c.customerName || c.guestName || c.name || c.senderName || 'Customer',
+      email: c.customerEmail || c.email || '',
+      phone: c.customerPhone || c.phoneNumber || c.contactNumber || '',
+    });
+
+    const matches = (c) => {
+      const email = (c.email || '').toLowerCase();
+      const phone = (c.phone || '').replace(/\s/g, '');
+      const q = query.replace(/\s/g, '');
+      return (email && email === query) || (email && email.includes(query)) || (phone && phone.includes(q));
+    };
+
+    // Gather candidate customers from every source we can, ignoring individual failures.
+    const candidates = [];
+    const addFrom = (res) => {
       const list = Array.isArray(res) ? res : res?.content || [];
-      const query = customerSearch.trim().toLowerCase();
-      const found = list.find(c =>
-        (c.email && c.email.toLowerCase() === query) ||
-        (c.phoneNumber && c.phoneNumber.includes(query)) ||
-        (c.contactNumber && c.contactNumber.includes(query))
-      );
-      if (found) {
+      list.forEach((item) => {
+        const n = normalize(item);
+        if (n.id != null) candidates.push(n);
+      });
+    };
+
+    try {
+      // Reservations carry customer email/phone — the richest source.
+      const reservationCall = usesRoomBookings(attractionId)
+        ? businessService.getBookings(user.id)
+        : usesTableReservations(attractionId)
+          ? businessService.getTableReservations(user.id)
+          : businessService.getReservations(user.id);
+
+      const results = await Promise.allSettled([
+        reservationCall,
+        businessService.getMessages(user.id),
+        businessService.getFollowers(user.id),
+      ]);
+      results.forEach((r) => { if (r.status === 'fulfilled') addFrom(r.value); });
+
+      const found = candidates.find(matches);
+      if (found && found.id != null) {
         setFoundCustomer(found);
-        setNewMsgCustomerId(String(found.customerId || found.userId || found.id));
+        setNewMsgCustomerId(String(found.id));
       } else {
-        Alert.alert('Not Found', 'No customer found with that email or phone number. You can enter the customer ID directly.');
+        Alert.alert('Not Found', 'No customer found with that email or phone number. You can enter the customer ID directly below.');
       }
     } catch {
-      Alert.alert('Error', 'Failed to search. You can enter the customer ID directly.');
+      Alert.alert('Not Found', 'Could not find that customer. You can enter the customer ID directly below.');
     } finally {
       setSearchingCustomer(false);
     }
@@ -173,7 +263,7 @@ export default function MessagesScreen() {
           data={messages}
           keyExtractor={(item, idx) => String(item.id || idx)}
           renderItem={({ item }) => {
-            const isOwn = item.senderType === 'BUSINESS' || item.businessUserId === user.id;
+            const isOwn = isOwnMessage(item);
             return (
               <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleOther]}>
                 <Text style={[styles.bubbleText, isOwn && { color: '#fff' }]}>
@@ -295,8 +385,8 @@ export default function MessagesScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.foundName}>{foundCustomer.name || foundCustomer.customerName || 'Customer'}</Text>
-                  {foundCustomer.email && <Text style={styles.foundDetail}>{foundCustomer.email}</Text>}
-                  {foundCustomer.phoneNumber && <Text style={styles.foundDetail}>{foundCustomer.phoneNumber}</Text>}
+                  {foundCustomer.email ? <Text style={styles.foundDetail}>{foundCustomer.email}</Text> : null}
+                  {(foundCustomer.phone || foundCustomer.phoneNumber) ? <Text style={styles.foundDetail}>{foundCustomer.phone || foundCustomer.phoneNumber}</Text> : null}
                 </View>
                 <Text style={[styles.foundCheck, { color: colors.primary }]}>✓</Text>
               </View>
