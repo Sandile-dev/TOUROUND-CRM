@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import promotionService from '../api/promotionService';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import {
   resolveCategory,
   reservationTypeFor,
@@ -315,12 +316,11 @@ export default function PromotionsScreen() {
         </TouchableOpacity>
       </View>
 
-      {renderForm()}
-
       {loading ? (
         <Text style={styles.loadingText}>Loading promotions...</Text>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 30 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 140 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+          {renderForm()}
           {promotions.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={{ fontSize: 24, marginBottom: 8 }}>🏷️</Text>
@@ -329,7 +329,7 @@ export default function PromotionsScreen() {
           ) : (
             promotions.map(promo => renderPromoCard(promo))
           )}
-        </ScrollView>
+        </KeyboardAwareScroll>
       )}
     </View>
   );

@@ -124,21 +124,24 @@ export default function ReservationsScreen() {
 
   const handleCheckout = async (item) => {
     const id = typeof item === 'object' ? item.id : item;
-    // For services without upfront payment, the amount is collected on-site.
-    // If payment is still PENDING at check-out, mark it PAID.
     const currentPayment = (typeof item === 'object' ? item.paymentStatus : null) || '';
-    const shouldMarkPaid = currentPayment.toUpperCase() !== 'PAID';
+    const shouldMarkPaid = currentPayment.toUpperCase() !== 'COMPLETED';
     try {
-      if (usesRoomBookings(attractionId)) {
-        await businessService.updateBooking(id, {
-          bookingStatus: 'CHECKED_OUT',
-          ...(shouldMarkPaid ? { paymentStatus: 'PAID' } : {}),
-        });
-      } else if (usesTableReservations(attractionId)) {
-        await businessService.checkoutTableReservation(id, shouldMarkPaid);
-      } else {
-        await businessService.checkoutReservation(id, shouldMarkPaid);
+      // 1) Check out (status change) — must always succeed.
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_OUT' });
+      else if (usesTableReservations(attractionId)) await businessService.checkoutTableReservation(id);
+      else await businessService.checkoutReservation(id);
+
+      // 2) Best-effort: mark payment collected on-site. Done separately so a
+      //    payment-status constraint issue can't block the check-out itself.
+      if (shouldMarkPaid) {
+        try {
+          if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { paymentStatus: 'COMPLETED' });
+          else if (usesTableReservations(attractionId)) await businessService.markTableReservationPaid(id);
+          else await businessService.markReservationPaid(id);
+        } catch {}
       }
+
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
   };

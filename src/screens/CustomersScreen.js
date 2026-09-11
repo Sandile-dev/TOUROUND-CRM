@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, RefreshControl, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -16,6 +16,7 @@ export default function CustomersScreen() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [detailCustomer, setDetailCustomer] = useState(null);
 
   useEffect(() => {
     if (user?.id) loadData();
@@ -44,7 +45,7 @@ export default function CustomersScreen() {
         if (!customerMap[id]) {
           customerMap[id] = {
             id,
-            name: r.customerName || r.guestName || 'Customer',
+            name: r.customerName || r.guestName || '',
             email: r.customerEmail || '',
             phone: r.customerPhone || '',
             lastActivity: r.createdAt,
@@ -58,7 +59,23 @@ export default function CustomersScreen() {
           }
         }
       });
-      setCustomers(Object.values(customerMap));
+
+      // Reservations only carry customerId, so enrich each customer with their
+      // profile (name/email/phone) — done in parallel, failures ignored.
+      const customerList = Object.values(customerMap);
+      await Promise.all(customerList.map(async (c) => {
+        if (c.name && c.email) return; // already has details
+        try {
+          const p = await businessService.getCustomerProfile(c.id);
+          if (p) {
+            c.name = c.name || [p.name, p.surname].filter(Boolean).join(' ').trim() || p.fullName || 'Customer';
+            c.email = c.email || p.email || '';
+            c.phone = c.phone || p.phoneNumber || p.contactNumber || p.phone || '';
+          }
+        } catch {}
+        if (!c.name) c.name = 'Customer';
+      }));
+      setCustomers(customerList);
 
       // Gather leads from followers + messages
       const leadMap = {};
@@ -106,7 +123,7 @@ export default function CustomersScreen() {
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const renderCustomer = ({ item }) => (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={() => setDetailCustomer(item)}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardName}>{item.name}</Text>
         <View style={[styles.badge, { backgroundColor: '#16a34a20' }]}>
@@ -120,7 +137,7 @@ export default function CustomersScreen() {
         </Text>
         <Text style={styles.footerText}>{item.interactions} interaction{item.interactions !== 1 ? 's' : ''}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderLead = ({ item }) => (
@@ -193,6 +210,42 @@ export default function CustomersScreen() {
           />
         )
       )}
+
+      {/* Customer detail modal */}
+      <Modal visible={!!detailCustomer} transparent animationType="slide" onRequestClose={() => setDetailCustomer(null)}>
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailSheet}>
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle}>Customer Details</Text>
+              <TouchableOpacity onPress={() => setDetailCustomer(null)}>
+                <Text style={styles.detailClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {detailCustomer && (
+              <>
+                <View style={[styles.detailAvatar, { backgroundColor: colors.light }]}>
+                  <Text style={[styles.detailAvatarText, { color: colors.primary }]}>
+                    {(detailCustomer.name || 'C').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                {[
+                  ['Name', detailCustomer.name || '—'],
+                  ['Email', detailCustomer.email || '—'],
+                  ['Phone', detailCustomer.phone || '—'],
+                  ['Status', detailCustomer.status || '—'],
+                  ['Interactions', String(detailCustomer.interactions ?? '—')],
+                  ['Last activity', detailCustomer.lastActivity ? new Date(detailCustomer.lastActivity).toLocaleString() : '—'],
+                ].map(([label, value]) => (
+                  <View key={label} style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>{label}</Text>
+                    <Text style={styles.detailValue}>{value}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -223,4 +276,15 @@ const styles = StyleSheet.create({
   scoreValue: { fontSize: 12, fontWeight: '600', color: '#111827', marginLeft: 8, width: 35 },
   loadingText: { color: '#6b7280', textAlign: 'center', marginTop: 40 },
   emptyText: { color: '#9ca3af', textAlign: 'center', marginTop: 40, fontSize: 14 },
+  // Detail modal
+  detailOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  detailSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
+  detailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  detailTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  detailClose: { fontSize: 22, color: '#6b7280', padding: 4 },
+  detailAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 },
+  detailAvatarText: { fontSize: 24, fontWeight: 'bold' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 },
+  detailLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  detailValue: { fontSize: 14, color: '#111827', fontWeight: '600', flexShrink: 1, textAlign: 'right' },
 });

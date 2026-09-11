@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Modal, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import TopNavbar from '../components/TopNavbar';
 import { AuthContext } from '../context/AuthContext';
@@ -316,8 +316,16 @@ export default function MessagesScreen() {
         transparent={true}
         onRequestClose={() => setShowNewMsgModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            style={styles.modalContent}
+            contentContainerStyle={{ paddingBottom: 8 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Message</Text>
               <TouchableOpacity onPress={() => { setShowNewMsgModal(false); setFoundCustomer(null); setCustomerSearch(''); }}>
@@ -396,8 +404,8 @@ export default function MessagesScreen() {
             >
               <Text style={styles.modalSendBtnText}>{sendingNew ? 'Sending...' : 'Send Message'}</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -439,7 +447,7 @@ const styles = StyleSheet.create({
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginTop: -2 },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '80%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   modalClose: { fontSize: 22, color: '#6b7280', padding: 4 },

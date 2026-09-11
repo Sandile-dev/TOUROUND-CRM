@@ -85,16 +85,24 @@ export default function DashboardScreen() {
       if (usesRoomBookings(attractionId)) {
         const res = await businessService.getBookings(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
-        salesItems = reservations;
       } else if (usesTableReservations(attractionId)) {
         const res = await businessService.getTableReservations(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
-        salesItems = reservations.filter(r => r.upfrontPaymentRequired);
       } else {
         const res = await businessService.getReservations(user.id);
         reservations = Array.isArray(res) ? res : res?.content || [];
-        salesItems = reservations.filter(r => r.upfrontPaymentRequired);
       }
+
+      // Revenue = reservations that represent earned income: paid, or an active/
+      // completed status. (The reservation DTO has no `upfrontPaymentRequired`.)
+      const isRevenue = (r) => {
+        const pay = (r.paymentStatus || '').toUpperCase();
+        const st = (r.bookingStatus || r.reservationStatus || '').toUpperCase();
+        return pay === 'COMPLETED' || pay === 'PAID'
+          || st === 'CHECKED_OUT' || st === 'CHECKED_IN'
+          || st === 'ACCEPTED' || st === 'BOOKED' || st === 'RESERVED' || st === 'CONFIRMED';
+      };
+      salesItems = reservations.filter(isRevenue);
 
       try {
         const ticketsRes = await businessService.getTickets(user.id);
