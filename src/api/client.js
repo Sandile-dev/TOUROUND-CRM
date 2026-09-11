@@ -5,6 +5,37 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY = 1000;
 const TIMEOUT = 30000;
 
+// Shared in-flight refresh promise so concurrent 401s trigger only one refresh.
+let refreshPromise = null;
+
+/**
+ * Attempt to exchange the stored refresh token for a new access token.
+ * Implemented here (not via authService) to avoid a circular import.
+ * Returns the new access token, or null if refresh isn't possible.
+ */
+async function refreshAccessToken(baseURL) {
+  const refresh = await storage.getItem('crm_refresh_token');
+  if (!refresh) return null;
+  try {
+    const response = await fetch(`${baseURL}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+    if (!response.ok) return null;
+    const ct = response.headers.get('content-type') || '';
+    const data = ct.includes('application/json') ? await response.json() : await response.text();
+    const newToken = (typeof data === 'string' ? data : (data.accessToken || data.token || '')).trim();
+    if (!newToken) return null;
+    await storage.setItem('crm_token', newToken);
+    const newRefresh = typeof data === 'object' ? (data.refreshToken || data.refresh_token || '').trim() : '';
+    if (newRefresh) await storage.setItem('crm_refresh_token', newRefresh);
+    return newToken;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Lightweight API client using fetch (no axios dependency).
  * Handles JWT auth, retries, and error normalization.
@@ -15,6 +46,8 @@ class ApiClient {
   }
 
   async request(method, url, data, options = {}) {
+    const { _isRetry, ...restOptions } = options;
+    options = restOptions;
     const token = await storage.getItem('crm_token');
     const fullUrl = `${this.baseURL}${url}`;
 
@@ -47,12 +80,23 @@ class ApiClient {
         const response = await fetch(fullUrl, config);
         clearTimeout(timeoutId);
 
-        // Handle auth errors
-        if (response.status === 401 || response.status === 403) {
-          if (!url.includes('/auth/')) {
-            await storage.deleteItem('crm_token');
-            await storage.deleteItem('crm_user');
+        // Handle auth errors: try a token refresh once, then retry the request.
+        if ((response.status === 401 || response.status === 403) && !url.includes('/auth/')) {
+          if (!_isRetry) {
+            // Coalesce concurrent refreshes into a single request.
+            if (!refreshPromise) {
+              refreshPromise = refreshAccessToken(this.baseURL).finally(() => { refreshPromise = null; });
+            }
+            const newToken = await refreshPromise;
+            if (newToken) {
+              // Retry the original request once with the fresh token.
+              return this.request(method, url, data, { ...options, _isRetry: true });
+            }
           }
+          // Refresh failed (or this was already a retry) — clear the session.
+          await storage.deleteItem('crm_token');
+          await storage.deleteItem('crm_refresh_token');
+          await storage.deleteItem('crm_user');
         }
 
         // Parse response

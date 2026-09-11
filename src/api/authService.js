@@ -64,6 +64,12 @@ const authService = {
           : (data.accessToken || data.token || '').trim();
       if (token) await storage.setItem('crm_token', token);
 
+      // Store the refresh token if the backend provides one.
+      const refresh = typeof data === 'object'
+        ? (data.refreshToken || data.refresh_token || '').trim()
+        : '';
+      if (refresh) await storage.setItem('crm_refresh_token', refresh);
+
       const payload = decodeJwtPayload(token);
       const userEmail = payload?.sub || email;
       const user = await findBusinessByEmail(userEmail);
@@ -71,6 +77,7 @@ const authService = {
       // Client-side guard: reject if user has no business association
       if (!user) {
         await storage.deleteItem('crm_token');
+        await storage.deleteItem('crm_refresh_token');
         throw new Error('This account is not associated with a business. Please use the customer app instead.');
       }
 
@@ -115,7 +122,34 @@ const authService = {
 
   logout: async () => {
     await storage.deleteItem('crm_token');
+    await storage.deleteItem('crm_refresh_token');
     await storage.deleteItem('crm_user');
+  },
+
+  /**
+   * Exchange the stored refresh token for a new access token.
+   * Assumes the backend exposes POST /auth/refresh accepting { refreshToken }
+   * and returning { accessToken, refreshToken? }.
+   * Returns the new access token, or null if refresh isn't possible.
+   */
+  refreshToken: async () => {
+    const refresh = await storage.getItem('crm_refresh_token');
+    if (!refresh) return null;
+    try {
+      const response = await apiClient.post('/auth/refresh-token', { refreshToken: refresh });
+      const data = response.data;
+      const newToken = (typeof data === 'string' ? data : (data.accessToken || data.token || '')).trim();
+      if (!newToken) return null;
+      await storage.setItem('crm_token', newToken);
+      // Persist a rotated refresh token if the backend returns one.
+      const newRefresh = typeof data === 'object'
+        ? (data.refreshToken || data.refresh_token || '').trim()
+        : '';
+      if (newRefresh) await storage.setItem('crm_refresh_token', newRefresh);
+      return newToken;
+    } catch {
+      return null;
+    }
   },
 
   forgotPassword: async (email) => {

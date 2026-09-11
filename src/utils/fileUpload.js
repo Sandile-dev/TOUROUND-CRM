@@ -84,6 +84,13 @@ export function sendFormData(method, url, formData, { token } = {}) {
   return sendViaXhr(method, url, formData, token);
 }
 
+function authError(status, text) {
+  if (status === 401 || status === 403) {
+    return new Error('Your session has expired. Please log out and log in again.');
+  }
+  return new Error(text || `Request failed with status ${status}`);
+}
+
 function sendViaXhr(method, url, formData, token) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -96,7 +103,7 @@ function sendViaXhr(method, url, formData, token) {
         try { resolve(JSON.parse(xhr.responseText)); }
         catch { resolve(xhr.responseText); }
       } else {
-        reject(new Error(xhr.responseText || `Request failed with status ${xhr.status}`));
+        reject(authError(xhr.status, xhr.responseText));
       }
     };
     xhr.onerror = () => reject(new Error('Network request failed'));
@@ -112,7 +119,7 @@ async function sendViaFetch(method, url, formData, token) {
   const responseText = await response.text();
 
   if (!response.ok) {
-    throw new Error(responseText || `Request failed with status ${response.status}`);
+    throw authError(response.status, responseText);
   }
 
   try { return JSON.parse(responseText); }

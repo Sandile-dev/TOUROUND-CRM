@@ -1,7 +1,14 @@
 import apiClient, { handleApiError } from './client';
 import storage from '../utils/storage';
 import env from '../config/env';
+import authService from './authService';
 import { appendFileList, sendFormData } from '../utils/fileUpload';
+
+// True if an error looks like an auth failure (401/403).
+function isAuthError(error) {
+  const msg = String(error?.message || '');
+  return msg.includes('session has expired') || msg.includes('401') || msg.includes('403');
+}
 
 // Helper: Build multipart request with JSON part (works with Spring Boot @RequestPart)
 async function sendMultipart(method, url, jsonFieldName, jsonData, files = {}) {
@@ -10,17 +17,30 @@ async function sendMultipart(method, url, jsonFieldName, jsonData, files = {}) {
   const hasFiles = Object.values(files).some(arr => Array.isArray(arr) && arr.length > 0);
 
   if (hasFiles) {
-    const formData = new FormData();
-    formData.append(jsonFieldName, JSON.stringify(jsonData));
-
-    for (const [fieldName, fileList] of Object.entries(files)) {
-      const isVideo = fieldName === 'videos' || fieldName === 'video';
-      await appendFileList(formData, fieldName, fileList, { isVideo });
-    }
+    const buildFormData = async () => {
+      const formData = new FormData();
+      formData.append(jsonFieldName, JSON.stringify(jsonData));
+      for (const [fieldName, fileList] of Object.entries(files)) {
+        const isVideo = fieldName === 'videos' || fieldName === 'video';
+        await appendFileList(formData, fieldName, fileList, { isVideo });
+      }
+      return formData;
+    };
 
     // Uses XHR on native (RN FormData supports { uri, type, name }) and fetch on
     // web (Blob parts). The Expo winter fetch does NOT support RN file parts.
-    return await sendFormData(method, `${env.apiBaseUrl}${url}`, formData, { token });
+    try {
+      return await sendFormData(method, `${env.apiBaseUrl}${url}`, await buildFormData(), { token });
+    } catch (error) {
+      // On auth failure, refresh the token once and retry.
+      if (isAuthError(error)) {
+        const newToken = await authService.refreshToken();
+        if (newToken) {
+          return await sendFormData(method, `${env.apiBaseUrl}${url}`, await buildFormData(), { token: newToken });
+        }
+      }
+      throw error;
+    }
   }
 
   // No files — use manual boundary approach (text-only multipart)
@@ -102,7 +122,7 @@ const businessService = {
 
   deletePost: async (postId) => {
     try {
-      await apiClient.delete(`/posts/${postId}`);
+      await apiClient.delete(`/posts/remove/${postId}`);
     } catch (error) {
       throw handleApiError(error);
     }
@@ -206,13 +226,12 @@ const businessService = {
     try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_IN' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
-  checkoutReservation: async (reservationId, markPaid = false) => {
-    try {
-      const body = { reservationStatus: 'CHECKED_OUT' };
-      if (markPaid) body.paymentStatus = 'PAID';
-      const r = await apiClient.put(`/reservations/update/${reservationId}`, body);
-      return r.data;
-    } catch (error) { throw handleApiError(error); }
+  checkoutReservation: async (reservationId) => {
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
+  markReservationPaid: async (reservationId) => {
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { paymentStatus: 'COMPLETED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   acceptTableReservation: async (reservationId) => {
@@ -235,13 +254,12 @@ const businessService = {
     try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_IN' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
-  checkoutTableReservation: async (reservationId, markPaid = false) => {
-    try {
-      const body = { reservationStatus: 'CHECKED_OUT' };
-      if (markPaid) body.paymentStatus = 'PAID';
-      const r = await apiClient.put(`/table-reservations/update/${reservationId}`, body);
-      return r.data;
-    } catch (error) { throw handleApiError(error); }
+  checkoutTableReservation: async (reservationId) => {
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
+  markTableReservationPaid: async (reservationId) => {
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { paymentStatus: 'COMPLETED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   getBookings: async (businessUserId) => {
@@ -263,6 +281,12 @@ const businessService = {
   // Reviews
   getReviews: async (businessUserId) => {
     try { const r = await apiClient.get(`/reviews/business/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
+  // Reply to a customer review.
+  // NOTE: endpoint/field names assumed by convention — confirm against the API.
+  replyToReview: async (reviewId, reply) => {
+    try { const r = await apiClient.post(`/reviews/${reviewId}/reply`, { reply }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   // Messages
