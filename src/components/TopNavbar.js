@@ -1,11 +1,14 @@
-import React, { useContext, useState, useCallback } from 'react';
+import React, { useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import { initNotifications, presentLocalNotification } from '../utils/notifications';
 import ProfileModal from './ProfileModal';
+
+const NOTIF_POLL_MS = 30000;
 
 export default function TopNavbar() {
   const { user } = useContext(AuthContext);
@@ -13,6 +16,9 @@ export default function TopNavbar() {
   const navigation = useNavigation();
   const [profileVisible, setProfileVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Highest notification id seen so far — used to detect genuinely new arrivals.
+  const lastSeenIdRef = useRef(null);
+  const primedRef = useRef(false);
 
   const loadUnread = useCallback(async () => {
     if (!user?.id) return;
@@ -21,10 +27,41 @@ export default function TopNavbar() {
       const list = Array.isArray(res) ? res : res?.content || [];
       const count = list.filter((n) => n.read === false || n.isRead === false).length;
       setUnreadCount(count);
+
+      // Detect new notifications (by max id) and fire a local notification
+      // with sound. Skip the first load so we don't alert on existing items.
+      const maxId = list.reduce((m, n) => {
+        const id = Number(n.id) || 0;
+        return id > m ? id : m;
+      }, 0);
+
+      if (!primedRef.current) {
+        lastSeenIdRef.current = maxId;
+        primedRef.current = true;
+      } else if (maxId > (lastSeenIdRef.current || 0)) {
+        // Find the newest notification for the banner text.
+        const newest = list.find((n) => Number(n.id) === maxId) || {};
+        presentLocalNotification(
+          newest.title || 'New notification',
+          newest.body || newest.message || 'You have a new notification.'
+        );
+        lastSeenIdRef.current = maxId;
+      }
     } catch {}
   }, [user]);
 
-  // Refresh the unread count whenever a screen using the navbar gains focus.
+  // Ask for notification permission / set up the Android channel once.
+  useEffect(() => { initNotifications(); }, []);
+
+  // Poll for new notifications on an interval while mounted.
+  useEffect(() => {
+    if (!user?.id) return;
+    loadUnread();
+    const interval = setInterval(loadUnread, NOTIF_POLL_MS);
+    return () => clearInterval(interval);
+  }, [user, loadUnread]);
+
+  // Also refresh whenever a screen using the navbar gains focus.
   useFocusEffect(useCallback(() => { loadUnread(); }, [loadUnread]));
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || 'B';

@@ -65,7 +65,8 @@
           "photosPermission": "Allow Touround CRM to access your photos for uploading business images.",
           "cameraPermission": "Allow Touround CRM to use your camera to take photos."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "updates": {
       "enabled": true,
