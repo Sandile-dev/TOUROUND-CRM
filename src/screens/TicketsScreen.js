@@ -13,10 +13,6 @@ if (Platform.OS !== 'web') {
   try { BarCodeScanner = require('expo-barcode-scanner').BarCodeScanner; } catch {}
 }
 
-// Default event category classification id (the `events.categoryId` field).
-// The backend's create-event contract requires a categoryId on the event.
-const EVENT_CATEGORY_ID = 1;
-
 // Ticket category tier names (per-event ticket types).
 const EVENT_CATEGORIES = [
   'GENERAL',
@@ -128,10 +124,12 @@ export default function TicketsScreen() {
     setEventLocation(event.location || event.venue || '');
     setEventDescription(event.description || '');
     // Pre-fill ticket categories from the event's existing categories, if any.
+    // Keep each category's id so updates modify existing categories in place.
     const existing = event.ticketCategories || event.categories || [];
     if (Array.isArray(existing) && existing.length > 0) {
       setEventCategories(existing.map((c) => ({
-        name: c.name || c.type || c.tickeCategoryType || '',
+        id: c.id,
+        name: c.name || c.type || '',
         price: String(c.price ?? ''),
         totalTickets: String(c.totalTickets ?? c.remainingTickets ?? ''),
       })));
@@ -191,23 +189,30 @@ export default function TicketsScreen() {
 
     setSubmitting(true);
     try {
+      // Ticket categories are sent INLINE in the event payload as `categories`.
+      // Existing categories carry an `id` so the backend updates them in place;
+      // new categories omit it so the backend creates them.
+      const categories = filledCategories.map((c) => ({
+        ...(c.id != null ? { id: c.id } : {}),
+        name: c.name,
+        price: Number(c.price),
+        totalTickets: Number(c.totalTickets),
+      }));
+
       const data = {
         name: eventName.trim(),
         eventDate: eventDate.trim(),
         eventTime: eventTime.trim(),
         location: eventLocation.trim(),
         description: eventDescription.trim(),
-        // Event's own category classification (distinct from ticket categories).
-        categoryId: EVENT_CATEGORY_ID,
         businessUserId: user.id,
       };
+      if (categories.length > 0) data.categories = categories;
 
-      let eventId = editingEvent?.id;
       if (editingEvent) {
         await businessService.updateEvent(editingEvent.id, data, eventImages, eventVideos);
       } else {
-        const created = await businessService.createEvent(data, eventImages, eventVideos);
-        eventId = created?.id ?? created?.eventId ?? eventId;
+        await businessService.createEvent(data, eventImages, eventVideos);
         // Auto-create an EVENT post
         try {
           const postData = {
@@ -219,20 +224,6 @@ export default function TicketsScreen() {
           };
           await businessService.createPost(postData, [], []);
         } catch {}
-      }
-
-      // Attach ticket categories (each with its own price and count).
-      if (eventId != null && filledCategories.length > 0) {
-        for (const c of filledCategories) {
-          try {
-            await businessService.addTicketCategory({
-              eventId,
-              name: c.name,
-              price: Number(c.price),
-              totalTickets: Number(c.totalTickets),
-            });
-          } catch {}
-        }
       }
 
       Alert.alert('Success', editingEvent ? 'Event updated' : 'Event created');
