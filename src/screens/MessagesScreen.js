@@ -6,7 +6,6 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
-import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function MessagesScreen() {
   const { user } = useContext(AuthContext);
@@ -157,58 +156,28 @@ export default function MessagesScreen() {
     setSearchingCustomer(true);
     setFoundCustomer(null);
 
-    const query = customerSearch.trim().toLowerCase();
-    const attractionId = resolveCategory(user?.attraction);
-
-    // Normalize any customer-like record into { id, name, email, phone }.
-    const normalize = (c) => ({
-      id: c.customerId ?? c.customerUserId ?? c.userId ?? c.id ?? c.senderId,
-      name: c.customerName || c.guestName || c.name || c.senderName || 'Customer',
-      email: c.customerEmail || c.email || '',
-      phone: c.customerPhone || c.phoneNumber || c.contactNumber || '',
-    });
-
-    const matches = (c) => {
-      const email = (c.email || '').toLowerCase();
-      const phone = (c.phone || '').replace(/\s/g, '');
-      const q = query.replace(/\s/g, '');
-      return (email && email === query) || (email && email.includes(query)) || (phone && phone.includes(q));
-    };
-
-    // Gather candidate customers from every source we can, ignoring individual failures.
-    const candidates = [];
-    const addFrom = (res) => {
-      const list = Array.isArray(res) ? res : res?.content || [];
-      list.forEach((item) => {
-        const n = normalize(item);
-        if (n.id != null) candidates.push(n);
-      });
-    };
+    const query = customerSearch.trim();
 
     try {
-      // Reservations carry customer email/phone — the richest source.
-      const reservationCall = usesRoomBookings(attractionId)
-        ? businessService.getBookings(user.id)
-        : usesTableReservations(attractionId)
-          ? businessService.getTableReservations(user.id)
-          : businessService.getReservations(user.id);
+      // Global search endpoint returns { customers, businessUsers, rooms, ... }.
+      const res = await businessService.search(query);
+      const customers = res?.customers || [];
 
-      const results = await Promise.allSettled([
-        reservationCall,
-        businessService.getMessages(user.id),
-        businessService.getFollowers(user.id),
-      ]);
-      results.forEach((r) => { if (r.status === 'fulfilled') addFrom(r.value); });
-
-      const found = candidates.find(matches);
-      if (found && found.id != null) {
-        setFoundCustomer(found);
-        setNewMsgCustomerId(String(found.id));
+      if (customers.length > 0) {
+        const c = customers[0];
+        const fullName = [c.name, c.surname].filter(Boolean).join(' ').trim() || 'Customer';
+        setFoundCustomer({
+          id: c.id,
+          name: fullName,
+          email: c.email || '',
+          phone: c.phoneNumber || '',
+        });
+        setNewMsgCustomerId(String(c.id));
       } else {
         Alert.alert('Not Found', 'No customer found with that email or phone number. You can enter the customer ID directly below.');
       }
     } catch {
-      Alert.alert('Not Found', 'Could not find that customer. You can enter the customer ID directly below.');
+      Alert.alert('Error', 'Could not search right now. You can enter the customer ID directly below.');
     } finally {
       setSearchingCustomer(false);
     }

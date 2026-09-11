@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl, Modal, ScrollView, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -10,6 +11,7 @@ import { resolveCategory, usesRoomBookings, usesTableReservations } from '../con
 export default function ReservationsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const attractionId = resolveCategory(user?.attraction);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,11 +122,23 @@ export default function ReservationsScreen() {
     } catch (err) { Alert.alert('Error', err.message); }
   };
 
-  const handleCheckout = async (id) => {
+  const handleCheckout = async (item) => {
+    const id = typeof item === 'object' ? item.id : item;
+    // For services without upfront payment, the amount is collected on-site.
+    // If payment is still PENDING at check-out, mark it PAID.
+    const currentPayment = (typeof item === 'object' ? item.paymentStatus : null) || '';
+    const shouldMarkPaid = currentPayment.toUpperCase() !== 'PAID';
     try {
-      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'CHECKED_OUT' });
-      else if (usesTableReservations(attractionId)) await businessService.checkoutTableReservation(id);
-      else await businessService.checkoutReservation(id);
+      if (usesRoomBookings(attractionId)) {
+        await businessService.updateBooking(id, {
+          bookingStatus: 'CHECKED_OUT',
+          ...(shouldMarkPaid ? { paymentStatus: 'PAID' } : {}),
+        });
+      } else if (usesTableReservations(attractionId)) {
+        await businessService.checkoutTableReservation(id, shouldMarkPaid);
+      } else {
+        await businessService.checkoutReservation(id, shouldMarkPaid);
+      }
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
   };
@@ -181,7 +195,7 @@ export default function ReservationsScreen() {
         )}
         {status === 'CHECKED_IN' && (
           <View style={styles.actions}>
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#374151' }]} onPress={() => handleCheckout(item.id)}>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#374151' }]} onPress={() => handleCheckout(item)}>
               <Text style={styles.actionText}>Check Out</Text>
             </TouchableOpacity>
           </View>
@@ -226,7 +240,7 @@ export default function ReservationsScreen() {
       {/* Detail Modal */}
       <Modal visible={detailModal} transparent animationType="slide" onRequestClose={() => setDetailModal(false)}>
         <View style={styles.detailOverlay}>
-          <View style={styles.detailSheet}>
+          <View style={[styles.detailSheet, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>Reservation Details</Text>
               <TouchableOpacity onPress={() => setDetailModal(false)}>

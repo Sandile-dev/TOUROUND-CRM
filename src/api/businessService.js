@@ -206,8 +206,13 @@ const businessService = {
     try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_IN' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
-  checkoutReservation: async (reservationId) => {
-    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
+  checkoutReservation: async (reservationId, markPaid = false) => {
+    try {
+      const body = { reservationStatus: 'CHECKED_OUT' };
+      if (markPaid) body.paymentStatus = 'PAID';
+      const r = await apiClient.put(`/reservations/update/${reservationId}`, body);
+      return r.data;
+    } catch (error) { throw handleApiError(error); }
   },
 
   acceptTableReservation: async (reservationId) => {
@@ -230,8 +235,13 @@ const businessService = {
     try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_IN' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
-  checkoutTableReservation: async (reservationId) => {
-    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
+  checkoutTableReservation: async (reservationId, markPaid = false) => {
+    try {
+      const body = { reservationStatus: 'CHECKED_OUT' };
+      if (markPaid) body.paymentStatus = 'PAID';
+      const r = await apiClient.put(`/table-reservations/update/${reservationId}`, body);
+      return r.data;
+    } catch (error) { throw handleApiError(error); }
   },
 
   getBookings: async (businessUserId) => {
@@ -315,6 +325,11 @@ const businessService = {
   // Customer
   getCustomerProfile: async (customerId) => {
     try { const r = await apiClient.get(`/customer/profile/${customerId}`); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
+  // Global search. Returns { businessUsers, customers, rooms, businessTables, businessSlots }.
+  search: async (query) => {
+    try { const r = await apiClient.get('/search', { params: { query } }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
   // Attractions
