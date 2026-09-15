@@ -22,8 +22,31 @@ const paymentService = {
   requestPayout: async (amount) => {
     try { const r = await apiClient.post(`/v1/wallet/payout?amount=${amount}`); return r.data; } catch (e) { throw handleApiError(e); }
   },
-  recordCashPayment: async (data) => {
-    try { const r = await apiClient.post('/payments/cash', data); return r.data; } catch (e) { throw handleApiError(e); }
+  // Records a cash payment. Per the contract, cash is a payment with method
+  // CASH and no explicit status — the backend marks it COMPLETED immediately.
+  recordCashPayment: async ({ amount, bookingReference }) => {
+    try {
+      const r = await apiClient.post('/payments', {
+        amount,
+        bookingReference,
+        paymentMethod: 'CASH',
+      });
+      return r.data;
+    } catch (e) { throw handleApiError(e); }
+  },
+
+  // Initiates an Ozow payment. The response includes an `approvalLink` that
+  // should be shared with the customer to complete payment.
+  createOzowPayment: async ({ amount, bookingReference }) => {
+    try {
+      const r = await apiClient.post('/payments', {
+        amount,
+        bookingReference,
+        paymentMethod: 'OZOW',
+        paymentStatus: 'PENDING',
+      });
+      return r.data;
+    } catch (e) { throw handleApiError(e); }
   },
   getCommissionOwed: async () => {
     try { const r = await apiClient.get('/v1/wallet/commission-owed'); return r.data; } catch (e) { throw handleApiError(e); }

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, Alert, ActivityIndicator, Share } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -193,7 +193,6 @@ export default function PaymentsScreen() {
       await paymentService.recordCashPayment({
         amount: parseFloat(cashForm.amount),
         bookingReference: cashForm.bookingReference,
-        paymentMethod: 'CASH', paymentStatus: 'COMPLETED',
       });
       setCashForm({ amount: '', bookingReference: '' });
       setShowCashModal(false);
@@ -201,6 +200,34 @@ export default function PaymentsScreen() {
       loadPaymentData();
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to record cash payment');
+    } finally { setSubmitting(false); }
+  };
+
+  // Initiate an Ozow payment and share the returned approval link with the customer.
+  const handleRequestOzow = async () => {
+    if (!cashForm.amount || !cashForm.bookingReference) {
+      Alert.alert('Error', 'Please fill in all fields'); return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await paymentService.createOzowPayment({
+        amount: parseFloat(cashForm.amount),
+        bookingReference: cashForm.bookingReference,
+      });
+      const link = res?.approvalLink || res?.approval_link || res?.url;
+      setCashForm({ amount: '', bookingReference: '' });
+      setShowCashModal(false);
+      if (link) {
+        // Let the business share the payment link with the customer.
+        try {
+          await Share.share({ message: `Complete your payment here: ${link}` });
+        } catch {}
+      } else {
+        Alert.alert('Payment created', 'Payment was created but no approval link was returned.');
+      }
+      loadPaymentData();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to create Ozow payment');
     } finally { setSubmitting(false); }
   };
 
@@ -387,7 +414,7 @@ export default function PaymentsScreen() {
         {/* Actions */}
         <View style={styles.cashActions}>
           <TouchableOpacity style={[styles.cashActionBtn, { backgroundColor: colors.primary }]} onPress={() => setShowCashModal(true)}>
-            <Text style={styles.cashActionBtnText}>+ Record Cash Payment</Text>
+            <Text style={styles.cashActionBtnText}>+ Record / Request Payment</Text>
           </TouchableOpacity>
           {commissionOwed > 0 && (
             <TouchableOpacity style={[styles.cashActionBtn, { backgroundColor: '#dc2626' }]} onPress={handleSettleCommission}>
@@ -580,10 +607,10 @@ export default function PaymentsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Record Cash Payment</Text>
+              <Text style={styles.modalTitle}>Record a Payment</Text>
               <TouchableOpacity onPress={() => setShowCashModal(false)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>20% commission will be added to your owed balance.</Text>
+            <Text style={styles.modalSubtitle}>Record a cash payment, or send the customer an Ozow online payment link. Cash payments add 20% commission to your owed balance.</Text>
             <Text style={styles.fieldLabel}>Booking Reference</Text>
             <TextInput style={styles.input} value={cashForm.bookingReference} onChangeText={t => setCashForm({ ...cashForm, bookingReference: t })} placeholder="e.g. RES-78432" placeholderTextColor="#9ca3af" />
             <Text style={styles.fieldLabel}>Amount (R)</Text>
@@ -594,7 +621,10 @@ export default function PaymentsScreen() {
               </View>
             ) : null}
             <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={handleRecordCash} disabled={submitting}>
-              <Text style={styles.primaryBtnText}>{submitting ? 'Recording...' : 'Record Payment'}</Text>
+              <Text style={styles.primaryBtnText}>{submitting ? 'Working...' : '💵 Record Cash Payment'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryBtn, styles.ozowBtn]} onPress={handleRequestOzow} disabled={submitting}>
+              <Text style={[styles.primaryBtnText, { color: colors.primary }]}>{submitting ? 'Working...' : '🔗 Send Online Payment Link (Ozow)'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -673,6 +703,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, fontSize: 14, color: '#111827', backgroundColor: '#f9fafb' },
   primaryBtn: { borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  ozowBtn: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e5e7eb', marginTop: 10 },
   infoText: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
