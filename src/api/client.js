@@ -166,35 +166,94 @@ class ApiClient {
 
 const apiClient = new ApiClient(env.apiBaseUrl);
 
+// Friendly, generic messages per HTTP status. Never expose backend internals.
+function friendlyStatusMessage(status) {
+  switch (status) {
+    case 400: return 'Something went wrong with your request. Please check your details and try again.';
+    case 401: return 'Incorrect email or password.';
+    case 403: return 'You do not have permission to do that.';
+    case 404: return 'We couldn’t find what you were looking for.';
+    case 409: return 'That action conflicts with existing data. Please try again.';
+    case 422: return 'Some of the information provided is invalid. Please check and try again.';
+    case 429: return 'Too many requests. Please wait a moment and try again.';
+    default:
+      if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
+      return 'Something went wrong. Please try again.';
+  }
+}
+
+// Detects backend-internal / technical error text that must never reach users
+// (SQL, stack traces, ORM/JDBC errors, connection strings, etc.).
+function looksTechnical(msg) {
+  if (!msg || typeof msg !== 'string') return true;
+  const technicalMarkers = [
+    'sql', 'jdbc', 'select ', 'insert into', 'update ', 'delete from',
+    'relation', 'column', 'constraint', 'exception', 'nullpointer',
+    'stacktrace', 'at org.', 'at com.', 'at java.', 'hibernate', 'psql',
+    'syntax error', 'does not exist', 'org.springframework', 'servlet',
+    'null]', 'position:', '{', '}', 'errno', 'econnrefused',
+  ];
+  const lower = msg.toLowerCase();
+  if (technicalMarkers.some((m) => lower.includes(m))) return true;
+  // Overly long messages are almost always dumps, not user copy.
+  if (msg.length > 140) return true;
+  return false;
+}
+
+// Returns a user-safe message: the backend's message only if it's clearly
+// human-friendly, otherwise a generic status-based message.
+function safeMessage(rawMessage, status) {
+  if (rawMessage && !looksTechnical(rawMessage)) {
+    return rawMessage.trim();
+  }
+  return friendlyStatusMessage(status);
+}
+
 export function handleApiError(error) {
   if (error.name === 'AbortError') {
     return new Error('Request timed out. Please check your connection.');
   }
-  // If error already has a useful message, try to parse JSON from it
-  if (error.message) {
-    try {
-      const parsed = JSON.parse(error.message);
-      if (parsed.message) return new Error(parsed.message);
-    } catch {}
-    // If it's not JSON and not a generic network error, use it as-is
-    if (error.message !== 'Network request failed' && !error.message.includes('TypeError')) {
-      return error;
-    }
-  }
+
+  const status = error.response?.status;
+
+  // No HTTP response object — could be a network error OR a raw Error thrown by
+  // a non-apiClient path (e.g. multipart uploads) whose message may be a status
+  // string or a backend dump. Sanitize it.
   if (!error.response) {
-    return new Error('Unable to connect. Please check your internet connection.');
+    const msg = error.message || '';
+    if (msg.includes('timed out')) {
+      return new Error('Request timed out. Please check your connection.');
+    }
+    if (msg === 'Network request failed' || msg.includes('TypeError') || !msg) {
+      return new Error('Unable to connect. Please check your internet connection.');
+    }
+    // Extract an HTTP status if the message embeds one (e.g. "... status 400").
+    const statusMatch = msg.match(/status (\d{3})/);
+    const inferredStatus = statusMatch ? Number(statusMatch[1]) : undefined;
+    // The message may be JSON — pull message/error out first.
+    let candidate = msg;
+    try {
+      const parsed = JSON.parse(msg);
+      candidate = parsed.message || parsed.error || msg;
+    } catch {}
+    return new Error(safeMessage(candidate, inferredStatus));
   }
-  const data = error.response?.data;
-  if (typeof data === 'object' && data?.message) return new Error(data.message);
-  if (typeof data === 'string' && data.length < 200) {
+
+  // Try to extract a candidate message from the response body, then sanitize it.
+  const data = error.response.data;
+  let candidate = '';
+  if (typeof data === 'object' && data) {
+    candidate = data.message || data.error || '';
+  } else if (typeof data === 'string') {
     try {
       const parsed = JSON.parse(data);
-      if (parsed.message) return new Error(parsed.message);
-    } catch {}
-    return new Error(data);
+      candidate = parsed.message || parsed.error || '';
+    } catch {
+      candidate = data;
+    }
   }
-  if (data?.error) return new Error(data.error);
-  return new Error(error.message || 'An unexpected error occurred');
+
+  return new Error(safeMessage(candidate, status));
 }
 
 export default apiClient;

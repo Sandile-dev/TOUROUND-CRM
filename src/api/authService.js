@@ -107,7 +107,10 @@ const authService = {
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error(errText || `Registration failed with status ${response.status}`);
+        const regErr = new Error(errText || `Registration failed with status ${response.status}`);
+        // Attach a response so handleApiError maps it to a friendly, status-based message.
+        regErr.response = { status: response.status, data: errText };
+        throw regErr;
       }
 
       const ct = response.headers.get('content-type') || '';

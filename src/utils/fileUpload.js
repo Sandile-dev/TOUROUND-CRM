@@ -88,7 +88,11 @@ function authError(status, text) {
   if (status === 401 || status === 403) {
     return new Error('Your session has expired. Please log out and log in again.');
   }
-  return new Error(text || `Request failed with status ${status}`);
+  const err = new Error(text || `Request failed with status ${status}`);
+  // Attach a response so handleApiError can map it to a friendly, status-based
+  // message and never expose raw backend text (SQL dumps, stack traces, etc.).
+  err.response = { status, data: text };
+  return err;
 }
 
 function sendViaXhr(method, url, formData, token) {
