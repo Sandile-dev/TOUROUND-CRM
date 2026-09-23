@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, RefreshControl, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
+import DatePickerField from '../components/DatePickerField';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -23,6 +24,12 @@ export default function ReservationsScreen() {
   const [detailModal, setDetailModal] = useState(false);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  // Reschedule (update date/time) modal
+  const [rescheduleModal, setRescheduleModal] = useState(false);
+  const [rescheduleItem, setRescheduleItem] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
 
   useEffect(() => { if (user?.id) loadData(); }, [user]);
 
@@ -105,10 +112,20 @@ export default function ReservationsScreen() {
 
   const handleReject = async () => {
     if (!rejectReason.trim()) return;
+    const id = selectedId;
     try {
-      if (usesRoomBookings(attractionId)) await businessService.updateBooking(selectedId, { bookingStatus: 'CANCELLED', reason: rejectReason });
-      else if (usesTableReservations(attractionId)) await businessService.rejectTableReservation(selectedId, rejectReason);
-      else await businessService.rejectReservation(selectedId, rejectReason);
+      // 1) Reject/cancel the reservation.
+      if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { bookingStatus: 'CANCELLED', reason: rejectReason });
+      else if (usesTableReservations(attractionId)) await businessService.rejectTableReservation(id, rejectReason);
+      else await businessService.rejectReservation(id, rejectReason);
+
+      // 2) Best-effort: a cancelled/rejected booking's payment is FAILED.
+      try {
+        if (usesRoomBookings(attractionId)) await businessService.updateBooking(id, { paymentStatus: 'FAILED' });
+        else if (usesTableReservations(attractionId)) await businessService.updateTableReservationPayment(id, 'FAILED');
+        else await businessService.updateReservationPayment(id, 'FAILED');
+      } catch {}
+
       setRejectModal(false); loadData();
     } catch (err) { Alert.alert('Error', err.message); }
   };
@@ -144,6 +161,41 @@ export default function ReservationsScreen() {
 
       loadData();
     } catch (err) { Alert.alert('Error', err.message); }
+  };
+
+  const openReschedule = (item) => {
+    setRescheduleItem(item);
+    setRescheduleDate(item.date || item.checkInDate || '');
+    setRescheduleTime(item.time || '');
+    setRescheduleModal(true);
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleItem) return;
+    if (!rescheduleDate || !rescheduleTime.trim()) {
+      Alert.alert('Error', 'Please choose a date and enter a time.');
+      return;
+    }
+    setRescheduling(true);
+    const id = rescheduleItem.id;
+    const payload = { date: rescheduleDate, time: rescheduleTime.trim() };
+    try {
+      if (usesRoomBookings(attractionId)) {
+        await businessService.updateBooking(id, { checkInDate: rescheduleDate, ...payload });
+      } else if (usesTableReservations(attractionId)) {
+        await businessService.updateTableReservation(id, payload);
+      } else {
+        await businessService.updateReservation(id, payload);
+      }
+      setRescheduleModal(false);
+      loadData();
+      Alert.alert('Success', 'Reservation date and time updated.');
+    } catch (err) {
+      // Backend rejects if the slot is unavailable — surfaced via sanitized error.
+      Alert.alert('Unable to reschedule', err.message || 'That slot may be unavailable. Try another time.');
+    } finally {
+      setRescheduling(false);
+    }
   };
 
   const getStatus = (item) => item.bookingStatus || item.reservationStatus || 'PENDING';
@@ -193,6 +245,9 @@ export default function ReservationsScreen() {
           <View style={styles.actions}>
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => handleCheckin(item.id)}>
               <Text style={styles.actionText}>Check In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, styles.rescheduleBtn]} onPress={() => openReschedule(item)}>
+              <Text style={[styles.actionText, { color: colors.primary }]}>Reschedule</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -305,6 +360,34 @@ export default function ReservationsScreen() {
         </View>
       </Modal>
 
+      {/* Reschedule Modal */}
+      <Modal visible={rescheduleModal} transparent animationType="fade" onRequestClose={() => setRescheduleModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reschedule Reservation</Text>
+            <Text style={styles.modalDesc}>Set a new date and time. If the slot is unavailable, you’ll be asked to pick another.</Text>
+            <Text style={styles.rescheduleLabel}>Date</Text>
+            <DatePickerField value={rescheduleDate} onChange={setRescheduleDate} placeholder="Select date" />
+            <Text style={styles.rescheduleLabel}>Time</Text>
+            <TextInput
+              style={[styles.modalInput, { minHeight: 0 }]}
+              placeholder="e.g. 14:00"
+              placeholderTextColor="#9ca3af"
+              value={rescheduleTime}
+              onChangeText={setRescheduleTime}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setRescheduleModal(false)} disabled={rescheduling}>
+                <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalConfirm, { backgroundColor: colors.primary }]} onPress={handleReschedule} disabled={rescheduling}>
+                <Text style={{ color: '#fff', fontWeight: '600' }}>{rescheduling ? 'Saving...' : 'Update'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Reject Modal */}
       <Modal visible={rejectModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -351,6 +434,8 @@ const styles = StyleSheet.create({
   amountText: { fontWeight: '700', color: '#111827' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   actionBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 6 },
+  rescheduleBtn: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#e5e7eb' },
+  rescheduleLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 4 },
   actionText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   loadingText: { color: '#6b7280', textAlign: 'center', marginTop: 40 },
   emptyText: { color: '#9ca3af', textAlign: 'center', marginTop: 40, fontSize: 14 },

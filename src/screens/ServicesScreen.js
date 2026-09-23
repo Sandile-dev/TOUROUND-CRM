@@ -36,18 +36,22 @@ export default function ServicesScreen() {
   // Table fields
   const [capacity, setCapacity] = useState('');
   const [totalNumberOfTables, setTotalNumberOfTables] = useState('');
-  const [upfrontPaymentRequired, setUpfrontPaymentRequired] = useState(false);
+  // Payment mode toggle: true = Card (default), false = Cash. Sent as Yes/No.
+  const [upfrontPaymentRequired, setUpfrontPaymentRequired] = useState(true);
   const [tablePrice, setTablePrice] = useState('');
   const [tableDescription, setTableDescription] = useState('');
   const [tableAddOns, setTableAddOns] = useState('');
 
   // Slot fields
   const [description, setDescription] = useState('');
-  const [slotCapacity, setSlotCapacity] = useState('');
+  const [slotAdultCapacity, setSlotAdultCapacity] = useState('');
+  const [slotChildCapacity, setSlotChildCapacity] = useState('');
   const [duration, setDuration] = useState('');
   const [listOfServices, setListOfServices] = useState('');
-  const [slotPrice, setSlotPrice] = useState('');
-  const [slotUpfrontPayment, setSlotUpfrontPayment] = useState(false);
+  const [slotAdultPrice, setSlotAdultPrice] = useState('');
+  const [slotChildPrice, setSlotChildPrice] = useState('');
+  // Payment mode toggle: true = Card (default), false = Cash. Sent to backend as Yes/No.
+  const [slotUpfrontPayment, setSlotUpfrontPayment] = useState(true);
   const [slotAddOns, setSlotAddOns] = useState('');
 
   // Images and videos for all service types
@@ -88,8 +92,8 @@ export default function ServicesScreen() {
 
   const resetForm = () => {
     setRoomType(''); setPricePerNight(''); setAdultCapacity(''); setChildCapacity(''); setTotalNumberOfRooms(''); setRoomDescription('');
-    setCapacity(''); setTotalNumberOfTables(''); setUpfrontPaymentRequired(false); setTablePrice(''); setTableDescription(''); setTableAddOns('');
-    setDescription(''); setSlotCapacity(''); setDuration(''); setListOfServices(''); setSlotPrice(''); setSlotUpfrontPayment(false); setSlotAddOns('');
+    setCapacity(''); setTotalNumberOfTables(''); setUpfrontPaymentRequired(true); setTablePrice(''); setTableDescription(''); setTableAddOns('');
+    setDescription(''); setSlotAdultCapacity(''); setSlotChildCapacity(''); setDuration(''); setListOfServices(''); setSlotAdultPrice(''); setSlotChildPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
     setServiceImages([]);
     setServiceVideos([]);
     setEditingItem(null);
@@ -117,12 +121,14 @@ export default function ServicesScreen() {
       setTableAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     } else {
       setDescription(item.description || '');
-      setSlotCapacity(String(item.capacity || ''));
+      setSlotAdultCapacity(String(item.adultCapacity ?? item.capacity ?? ''));
+      setSlotChildCapacity(String(item.childCapacity ?? item.kidsCapacity ?? ''));
       // Backend stores duration in minutes; the form edits in hours.
       setDuration(item.duration ? String(item.duration / 60) : '');
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
-      setSlotPrice(String(item.slotPrice || ''));
-      setSlotUpfrontPayment(item.upfrontPaymentRequired || false);
+      setSlotAdultPrice(String(item.adultPrice ?? item.slotPrice ?? ''));
+      setSlotChildPrice(String(item.childPrice ?? item.kidsPrice ?? ''));
+      setSlotUpfrontPayment(item.upfrontPaymentRequired !== false);
       setSlotAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     }
   };
@@ -191,13 +197,23 @@ export default function ServicesScreen() {
       } else {
         const addOnsArray = slotAddOns.trim() ? slotAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const servicesArray = listOfServices.trim() ? listOfServices.split(',').map(s => s.trim()).filter(Boolean) : [];
+        const toDecimal = (v) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : 0);
+        const adultCap = Number(slotAdultCapacity) || 0;
+        const childCap = Number(slotChildCapacity) || 0;
         const data = {
-          description, capacity: Number(slotCapacity),
+          description,
+          // Separate adult/kids capacity; keep total `capacity` for compatibility.
+          adultCapacity: adultCap,
+          childCapacity: childCap,
+          capacity: adultCap + childCap,
           // Duration is entered in hours; backend stores minutes.
           duration: duration ? Math.round(Number(duration) * 60) : 0,
           listOfServices: servicesArray,
-          // Backend expects a raw decimal number.
-          slotPrice: Number.isFinite(parseFloat(slotPrice)) ? parseFloat(slotPrice) : 0,
+          // Separate adult/kids prices (raw decimals). Keep `slotPrice` = adult price for compatibility.
+          adultPrice: toDecimal(slotAdultPrice),
+          childPrice: toDecimal(slotChildPrice),
+          slotPrice: toDecimal(slotAdultPrice),
+          // "Card or Cash" toggle: true = Card, false = Cash. Sent as boolean Yes/No.
           upfrontPaymentRequired: slotUpfrontPayment,
           availabilityStatus: 'available',
           addOns: addOnsArray,
@@ -301,9 +317,9 @@ export default function ServicesScreen() {
           <Text style={styles.fieldLabel}>Add-Ons</Text>
           <TextInput style={styles.input} placeholder="Add-Ons (comma separated)" placeholderTextColor="#9ca3af" value={tableAddOns} onChangeText={setTableAddOns} />
           <TouchableOpacity style={styles.toggleRow} onPress={() => setUpfrontPaymentRequired(!upfrontPaymentRequired)}>
-            <Text style={styles.toggleLabel}>Upfront Payment Required</Text>
-            <View style={[styles.toggle, upfrontPaymentRequired && { backgroundColor: colors.primary }]}>
-              <Text style={styles.toggleText}>{upfrontPaymentRequired ? 'Yes' : 'No'}</Text>
+            <Text style={styles.toggleLabel}>Payment: Card or Cash</Text>
+            <View style={[styles.toggle, { backgroundColor: colors.primary }]}>
+              <Text style={styles.toggleText}>{upfrontPaymentRequired ? 'Card' : 'Cash'}</Text>
             </View>
           </TouchableOpacity>
         </>
@@ -313,20 +329,24 @@ export default function ServicesScreen() {
         <>
           <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={description} onChangeText={setDescription} />
-          <Text style={styles.fieldLabel}>Capacity</Text>
-          <TextInput style={styles.input} placeholder="Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotCapacity} onChangeText={setSlotCapacity} />
+          <Text style={styles.fieldLabel}>Adults Capacity</Text>
+          <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultCapacity} onChangeText={setSlotAdultCapacity} />
+          <Text style={styles.fieldLabel}>Adult Price</Text>
+          <TextInput style={styles.input} placeholder="Price per adult" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultPrice} onChangeText={setSlotAdultPrice} />
+          <Text style={styles.fieldLabel}>Kids Capacity</Text>
+          <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildCapacity} onChangeText={setSlotChildCapacity} />
+          <Text style={styles.fieldLabel}>Kids Price</Text>
+          <TextInput style={styles.input} placeholder="Price per kid" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildPrice} onChangeText={setSlotChildPrice} />
           <Text style={styles.fieldLabel}>Duration (hours)</Text>
           <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={duration} onChangeText={setDuration} />
           <Text style={styles.fieldLabel}>List of Services</Text>
           <TextInput style={styles.input} placeholder="List of Services (comma separated)" placeholderTextColor="#9ca3af" value={listOfServices} onChangeText={setListOfServices} />
-          <Text style={styles.fieldLabel}>Slot Price</Text>
-          <TextInput style={styles.input} placeholder="Slot Price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotPrice} onChangeText={setSlotPrice} />
           <Text style={styles.fieldLabel}>Add-Ons</Text>
           <TextInput style={styles.input} placeholder="Add-Ons (comma separated)" placeholderTextColor="#9ca3af" value={slotAddOns} onChangeText={setSlotAddOns} />
           <TouchableOpacity style={styles.toggleRow} onPress={() => setSlotUpfrontPayment(!slotUpfrontPayment)}>
-            <Text style={styles.toggleLabel}>Upfront Payment Required</Text>
-            <View style={[styles.toggle, slotUpfrontPayment && { backgroundColor: colors.primary }]}>
-              <Text style={styles.toggleText}>{slotUpfrontPayment ? 'Yes' : 'No'}</Text>
+            <Text style={styles.toggleLabel}>Payment: Card or Cash</Text>
+            <View style={[styles.toggle, { backgroundColor: colors.primary }]}>
+              <Text style={styles.toggleText}>{slotUpfrontPayment ? 'Card' : 'Cash'}</Text>
             </View>
           </TouchableOpacity>
         </>
@@ -468,20 +488,20 @@ export default function ServicesScreen() {
           </View>
           <View style={styles.cardBody}>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Capacity</Text>
-              <Text style={styles.detailValue}>{item.capacity || 0} guests</Text>
+              <Text style={styles.detailLabel}>Adults</Text>
+              <Text style={styles.detailValue}>{item.adultCapacity ?? item.capacity ?? 0} · R{item.adultPrice ?? item.slotPrice ?? 0}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Kids</Text>
+              <Text style={styles.detailValue}>{item.childCapacity ?? 0} · R{item.childPrice ?? 0}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Duration</Text>
               <Text style={styles.detailValue}>{item.duration ? (item.duration / 60) : 0} hr</Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Price</Text>
-              <Text style={[styles.detailValue, { color: colors.primary }]}>R{item.slotPrice || 0}</Text>
-            </View>
-            <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Payment</Text>
-              <Text style={styles.detailValue}>{item.upfrontPaymentRequired ? 'Upfront required' : 'On arrival'}</Text>
+              <Text style={styles.detailValue}>{item.upfrontPaymentRequired ? 'Card' : 'Cash'}</Text>
             </View>
           </View>
           {renderAddOnsChips(item.addOns)}

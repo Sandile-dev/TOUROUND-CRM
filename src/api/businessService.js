@@ -230,6 +230,12 @@ const businessService = {
     try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
+  updateReservation: async (reservationId, data) => {
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, data); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+  updateReservationPayment: async (reservationId, paymentStatus) => {
+    try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { paymentStatus }); return r.data; } catch (error) { throw handleApiError(error); }
+  },
   markReservationPaid: async (reservationId) => {
     try { const r = await apiClient.put(`/reservations/update/${reservationId}`, { paymentStatus: 'COMPLETED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
@@ -258,6 +264,12 @@ const businessService = {
     try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { reservationStatus: 'CHECKED_OUT' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
+  updateTableReservation: async (reservationId, data) => {
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, data); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+  updateTableReservationPayment: async (reservationId, paymentStatus) => {
+    try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { paymentStatus }); return r.data; } catch (error) { throw handleApiError(error); }
+  },
   markTableReservationPaid: async (reservationId) => {
     try { const r = await apiClient.put(`/table-reservations/update/${reservationId}`, { paymentStatus: 'COMPLETED' }); return r.data; } catch (error) { throw handleApiError(error); }
   },
