@@ -183,15 +183,24 @@ function friendlyStatusMessage(status) {
 }
 
 // Detects backend-internal / technical error text that must never reach users
-// (SQL, stack traces, ORM/JDBC errors, connection strings, etc.).
+// (SQL, stack traces, ORM/JDBC/framework errors, connection strings, etc.).
 function looksTechnical(msg) {
   if (!msg || typeof msg !== 'string') return true;
   const technicalMarkers = [
+    // SQL / persistence
     'sql', 'jdbc', 'select ', 'insert into', 'update ', 'delete from',
-    'relation', 'column', 'constraint', 'exception', 'nullpointer',
-    'stacktrace', 'at org.', 'at com.', 'at java.', 'hibernate', 'psql',
-    'syntax error', 'does not exist', 'org.springframework', 'servlet',
-    'null]', 'position:', '{', '}', 'errno', 'econnrefused',
+    'relation', 'column', 'constraint', 'does not exist', 'syntax error',
+    'position:', 'psql', 'dialect',
+    // ORM / JPA / Hibernate / Spring
+    'hibernate', 'entitymanager', 'entity manager', 'transaction',
+    'org.springframework', 'org.hibernate', 'persistence', 'lazyinitialization',
+    'detached entity', 'flush', 'rollback', 'proxy', 'bean ',
+    // Java / stack traces
+    'exception', 'nullpointer', 'illegalargument', 'illegalstate',
+    'stacktrace', 'at org.', 'at com.', 'at java.', 'java.lang', 'servlet',
+    // Generic dump signatures
+    'null]', '{', '}', 'errno', 'econnrefused', 'cannot reliably',
+    'for current thread', "'remove' call", "'persist' call",
   ];
   const lower = msg.toLowerCase();
   if (technicalMarkers.some((m) => lower.includes(m))) return true;
@@ -203,6 +212,11 @@ function looksTechnical(msg) {
 // Returns a user-safe message: the backend's message only if it's clearly
 // human-friendly, otherwise a generic status-based message.
 function safeMessage(rawMessage, status) {
+  // Server-side (5xx) errors are internal by definition — never surface the
+  // raw message regardless of its wording.
+  if (status && status >= 500) {
+    return friendlyStatusMessage(status);
+  }
   if (rawMessage && !looksTechnical(rawMessage)) {
     return rawMessage.trim();
   }

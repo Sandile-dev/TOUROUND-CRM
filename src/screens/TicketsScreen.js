@@ -124,11 +124,10 @@ export default function TicketsScreen() {
     setEventLocation(event.location || event.venue || '');
     setEventDescription(event.description || '');
     // Pre-fill ticket categories from the event's existing categories, if any.
-    // Keep each category's id so updates modify existing categories in place.
+    // Categories are keyed by their enum name (GENERAL, VIP, ...) — no numeric id.
     const existing = event.ticketCategories || event.categories || [];
     if (Array.isArray(existing) && existing.length > 0) {
       setEventCategories(existing.map((c) => ({
-        id: c.id,
         name: c.name || c.type || '',
         price: String(c.price ?? ''),
         totalTickets: String(c.totalTickets ?? c.remainingTickets ?? ''),
@@ -190,10 +189,8 @@ export default function TicketsScreen() {
     setSubmitting(true);
     try {
       // Ticket categories are sent INLINE in the event payload as `categories`.
-      // Existing categories carry an `id` so the backend updates them in place;
-      // new categories omit it so the backend creates them.
+      // Each category is keyed by its enum name (GENERAL, VIP, ...) — no numeric id.
       const categories = filledCategories.map((c) => ({
-        ...(c.id != null ? { id: c.id } : {}),
         name: c.name,
         price: Number(c.price),
         totalTickets: Number(c.totalTickets),
