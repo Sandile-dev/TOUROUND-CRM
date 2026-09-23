@@ -22,8 +22,6 @@ export default function MessagesScreen() {
   // New message modal
   const [showNewMsgModal, setShowNewMsgModal] = useState(false);
   const [newMsgCustomerId, setNewMsgCustomerId] = useState('');
-  const [newMsgContent, setNewMsgContent] = useState('');
-  const [sendingNew, setSendingNew] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [searchingCustomer, setSearchingCustomer] = useState(false);
   const [foundCustomer, setFoundCustomer] = useState(null);
@@ -113,6 +111,19 @@ export default function MessagesScreen() {
     }
   };
 
+  // From the search modal: select a found customer and open the message form.
+  const openConversationForCustomer = (customer) => {
+    setShowNewMsgModal(false);
+    setCustomerSearch('');
+    setFoundCustomer(null);
+    openConversation({
+      customerId: customer.id,
+      customerName: customer.name || 'Customer',
+      customerEmail: customer.email || '',
+      customerPhone: customer.phone || '',
+    });
+  };
+
   const handleSend = async () => {
     const text = newMessage.trim();
     if (!text || sending) return;
@@ -183,37 +194,6 @@ export default function MessagesScreen() {
     }
   };
 
-  const handleSendNewMessage = async () => {
-    if (!newMsgCustomerId.trim()) {
-      Alert.alert('Error', 'Please search for a customer first or enter their ID');
-      return;
-    }
-    if (!newMsgContent.trim()) {
-      Alert.alert('Error', 'Please enter message content');
-      return;
-    }
-    setSendingNew(true);
-    try {
-      await businessService.sendMessage({
-        content: newMsgContent.trim(),
-        businessUserId: user.id,
-        customerUserId: Number(newMsgCustomerId),
-        senderType: 'BUSINESS',
-      });
-      setNewMsgCustomerId('');
-      setNewMsgContent('');
-      setCustomerSearch('');
-      setFoundCustomer(null);
-      setShowNewMsgModal(false);
-      loadConversations();
-      Alert.alert('Success', 'Message sent');
-    } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to send message');
-    } finally {
-      setSendingNew(false);
-    }
-  };
-
   const onRefresh = () => { setRefreshing(true); loadConversations(); };
 
   useRefreshOnFocus(useCallback(() => { loadConversations(); }, [user]));
@@ -225,7 +205,14 @@ export default function MessagesScreen() {
           <TouchableOpacity style={[styles.chatBackBtn, { backgroundColor: colors.primary }]} onPress={() => setSelectedConversation(null)}>
             <Text style={styles.chatBackIcon}>{'‹'}</Text>
           </TouchableOpacity>
-          <Text style={styles.chatTitle}>{selectedConversation.customerName}</Text>
+          <View style={styles.chatHeaderInfo}>
+            <Text style={styles.chatTitle} numberOfLines={1}>{selectedConversation.customerName}</Text>
+            {(selectedConversation.customerEmail || selectedConversation.customerPhone) ? (
+              <Text style={styles.chatSubtitle} numberOfLines={1}>
+                {selectedConversation.customerEmail || selectedConversation.customerPhone}
+              </Text>
+            ) : null}
+          </View>
           <View style={{ width: 36 }} />
         </View>
         <FlatList
@@ -327,14 +314,13 @@ export default function MessagesScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Message</Text>
+              <Text style={styles.modalTitle}>Find a Customer</Text>
               <TouchableOpacity onPress={() => { setShowNewMsgModal(false); setFoundCustomer(null); setCustomerSearch(''); }}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalLabel}>Customer Details</Text>
-            <Text style={styles.modalHint}>Search by email or phone number</Text>
+            <Text style={styles.modalHint}>Search by email or phone number, then select the customer to message them.</Text>
             <View style={styles.searchRow}>
               <TextInput
                 style={[styles.modalInput, { flex: 1, marginBottom: 0 }]}
@@ -343,6 +329,8 @@ export default function MessagesScreen() {
                 value={customerSearch}
                 onChangeText={setCustomerSearch}
                 autoCapitalize="none"
+                onSubmitEditing={handleSearchCustomer}
+                returnKeyType="search"
               />
               <TouchableOpacity
                 style={[styles.searchBtn, { backgroundColor: colors.primary }]}
@@ -354,56 +342,59 @@ export default function MessagesScreen() {
             </View>
 
             {foundCustomer && (
-              <View style={styles.foundCustomerCard}>
+              <TouchableOpacity
+                style={styles.foundCustomerCard}
+                activeOpacity={0.7}
+                onPress={() => openConversationForCustomer(foundCustomer)}
+              >
                 <View style={[styles.foundAvatar, { backgroundColor: colors.primary + '20' }]}>
                   <Text style={[styles.foundAvatarText, { color: colors.primary }]}>
-                    {(foundCustomer.name || foundCustomer.customerName || 'C').charAt(0).toUpperCase()}
+                    {(foundCustomer.name || 'C').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.foundName}>{foundCustomer.name || foundCustomer.customerName || 'Customer'}</Text>
+                  <Text style={styles.foundName}>{foundCustomer.name || 'Customer'}</Text>
                   {foundCustomer.email ? <Text style={styles.foundDetail}>{foundCustomer.email}</Text> : null}
-                  {(foundCustomer.phone || foundCustomer.phoneNumber) ? <Text style={styles.foundDetail}>{foundCustomer.phone || foundCustomer.phoneNumber}</Text> : null}
+                  {foundCustomer.phone ? <Text style={styles.foundDetail}>{foundCustomer.phone}</Text> : null}
                 </View>
-                <Text style={[styles.foundCheck, { color: colors.primary }]}>✓</Text>
-              </View>
+                <Text style={[styles.foundCheck, { color: colors.primary }]}>{'›'}</Text>
+              </TouchableOpacity>
+            )}
+
+            {foundCustomer && (
+              <TouchableOpacity
+                style={[styles.modalSendBtn, { backgroundColor: colors.primary }]}
+                onPress={() => openConversationForCustomer(foundCustomer)}
+              >
+                <Text style={styles.modalSendBtnText}>Message {foundCustomer.name || 'Customer'}</Text>
+              </TouchableOpacity>
             )}
 
             {!foundCustomer && (
-              <View style={styles.orRow}>
-                <View style={styles.orLine} />
-                <Text style={styles.orText}>or enter ID directly</Text>
-                <View style={styles.orLine} />
-              </View>
+              <>
+                <View style={styles.orRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>or enter customer ID directly</Text>
+                  <View style={styles.orLine} />
+                </View>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Customer ID"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numeric"
+                  value={newMsgCustomerId}
+                  onChangeText={setNewMsgCustomerId}
+                />
+                {newMsgCustomerId.trim() ? (
+                  <TouchableOpacity
+                    style={[styles.modalSendBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => openConversationForCustomer({ id: Number(newMsgCustomerId), name: `Customer #${newMsgCustomerId}` })}
+                  >
+                    <Text style={styles.modalSendBtnText}>Message this customer</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
             )}
-
-            {!foundCustomer && (
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Customer ID"
-                placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
-                value={newMsgCustomerId}
-                onChangeText={setNewMsgCustomerId}
-              />
-            )}
-
-            <Text style={styles.modalLabel}>Message</Text>
-            <TextInput
-              style={[styles.modalInput, { minHeight: 80, textAlignVertical: 'top' }]}
-              placeholder="Type your message..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              value={newMsgContent}
-              onChangeText={setNewMsgContent}
-            />
-            <TouchableOpacity
-              style={[styles.modalSendBtn, { backgroundColor: colors.primary }]}
-              onPress={handleSendNewMessage}
-              disabled={sendingNew}
-            >
-              <Text style={styles.modalSendBtnText}>{sendingNew ? 'Sending...' : 'Send Message'}</Text>
-            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
@@ -429,7 +420,9 @@ const styles = StyleSheet.create({
   chatHeader: { flexDirection: 'row', alignItems: 'center', paddingTop: 40, paddingBottom: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   chatBackBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   chatBackIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
-  chatTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center' },
+  chatHeaderInfo: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  chatTitle: { fontSize: 16, fontWeight: '600', color: '#111827', textAlign: 'center' },
+  chatSubtitle: { fontSize: 12, color: '#6b7280', textAlign: 'center', marginTop: 1 },
   chatList: { paddingVertical: 10, paddingHorizontal: 16, flexGrow: 1 },
   bubble: { maxWidth: '75%', padding: 10, borderRadius: 12, marginBottom: 8 },
   bubbleOwn: { alignSelf: 'flex-end', backgroundColor: '#0d9488' },

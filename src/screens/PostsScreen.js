@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, Image, ScrollView, Share, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TopNavbar from '../components/TopNavbar';
 import { AuthContext } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
+import env from '../config/env';
 
 export default function PostsScreen() {
   const { showError, showConfirm } = useAlert();
@@ -51,9 +52,13 @@ export default function PostsScreen() {
     if (!result.canceled && result.assets) setVideos([...videos, ...result.assets]);
   };
 
+  // A post is valid with text (>=5 chars) OR at least one image/video.
+  const hasMedia = images.length > 0 || videos.length > 0;
+  const canPost = content.trim().length >= 5 || hasMedia;
+
   const handleCreate = async () => {
-    if (!content.trim() || content.trim().length < 5) {
-      showError('Error', 'Post content must be at least 5 characters');
+    if (!canPost) {
+      showError('Error', 'Add a message (min 5 characters) or attach a photo/video.');
       return;
     }
     setSubmitting(true);
@@ -77,27 +82,16 @@ export default function PostsScreen() {
     }, 'Delete', 'Cancel');
   };
 
-  const handleShare = async (post) => {
-    try {
-      await Share.share({
-        message: `${post.content}\n\n- ${user?.name || 'Touround Business'}`,
-      });
-    } catch {}
-  };
-
-  const shareToFacebook = (post) => {
-    const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(post.content)}`;
-    Linking.openURL(url);
-  };
-
-  const shareToTwitter = (post) => {
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(post.content)}`;
-    Linking.openURL(url);
-  };
-
-  const shareToWhatsApp = (post) => {
-    const url = `https://wa.me/?text=${encodeURIComponent(post.content)}`;
-    Linking.openURL(url);
+  // Resolve an image entry (string URL or object) to a displayable URI.
+  const resolveImageUri = (entry) => {
+    if (!entry) return null;
+    const raw = typeof entry === 'string' ? entry : (entry.url || entry.imageUrl || entry.uri || '');
+    if (!raw) return null;
+    // Absolute URL or data URI — use as-is.
+    if (/^(https?:|data:|file:|blob:)/.test(raw)) return raw;
+    // Relative path — prefix with the API host (strip trailing /api).
+    const base = env.apiBaseUrl.replace(/\/api\/?$/, '');
+    return `${base}${raw.startsWith('/') ? '' : '/'}${raw}`;
   };
 
   const renderPost = ({ item }) => (
@@ -121,37 +115,25 @@ export default function PostsScreen() {
       </View>
 
       {/* Post content */}
-      <Text style={styles.postContent}>{item.content}</Text>
+      {item.content ? <Text style={styles.postContent}>{item.content}</Text> : null}
 
       {/* Post image(s) */}
-      {(item.imageUrls || item.images) && (item.imageUrls || item.images).length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.postImagesRow}>
-          {(item.imageUrls || item.images).map((url, idx) => (
-            <Image key={idx} source={{ uri: url }} style={[styles.postImage, (item.imageUrls || item.images).length === 1 && { width: '100%', marginRight: 0 }]} />
-          ))}
-        </ScrollView>
-      )}
+      {(() => {
+        const imgs = (item.imageUrls || item.images || []).map(resolveImageUri).filter(Boolean);
+        if (imgs.length === 0) return null;
+        return (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.postImagesRow}>
+            {imgs.map((uri, idx) => (
+              <Image key={idx} source={{ uri }} resizeMode="cover" style={[styles.postImage, imgs.length === 1 && { width: '100%', marginRight: 0 }]} />
+            ))}
+          </ScrollView>
+        );
+      })()}
 
       {/* Post footer */}
       <View style={styles.postFooter}>
         <Text style={styles.reactions}>{'\u2764'} {item.reactionsCount || 0}</Text>
         <Text style={styles.reactions}>{'\u{1F4AC}'} {item.comments?.length || 0} comments</Text>
-      </View>
-
-      {/* Share buttons */}
-      <View style={styles.shareRow}>
-        <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare(item)}>
-          <Text style={styles.shareBtnText}>{'\u{1F517}'} Share</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.shareBtn} onPress={() => shareToFacebook(item)}>
-          <Text style={[styles.shareBtnText, { color: '#1877F2' }]}>f</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.shareBtn} onPress={() => shareToTwitter(item)}>
-          <Text style={[styles.shareBtnText, { color: '#000' }]}>X</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.shareBtn} onPress={() => shareToWhatsApp(item)}>
-          <Text style={[styles.shareBtnText, { color: '#25D366' }]}>W</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Post type badge */}
@@ -195,9 +177,9 @@ export default function PostsScreen() {
           {videos.length > 0 && <Text style={styles.imageCount}>{videos.length} vid</Text>}
           <View style={{ flex: 1 }} />
           <TouchableOpacity
-            style={[styles.postBtn, { backgroundColor: content.trim().length >= 5 ? colors.primary : '#d1d5db' }]}
+            style={[styles.postBtn, { backgroundColor: canPost ? colors.primary : '#d1d5db' }]}
             onPress={handleCreate}
-            disabled={submitting || content.trim().length < 5}
+            disabled={submitting || !canPost}
           >
             <Text style={styles.postBtnText}>{submitting ? '...' : 'Post'}</Text>
           </TouchableOpacity>
@@ -265,9 +247,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   reactions: { fontSize: 12, color: '#6b7280' },
-  shareRow: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 8 },
-  shareBtn: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#f3f4f6', borderRadius: 6 },
-  shareBtnText: { fontSize: 13, fontWeight: '600', color: '#374151' },
   typeBadge: { position: 'absolute', top: 12, right: 50, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   typeBadgeText: { fontSize: 10, fontWeight: '600' },
   loadingText: { color: '#6b7280', textAlign: 'center', marginTop: 40 },
