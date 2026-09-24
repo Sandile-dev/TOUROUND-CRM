@@ -330,7 +330,7 @@ export default function TicketsScreen() {
 
   const renderEventsTab = () => (
     <>
-      <View style={styles.headerRow}>
+      <View style={styles.sectionHeaderRow}>
         <Text style={styles.subtitle}>Events</Text>
         <TouchableOpacity
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   addBtnText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   formCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' },
