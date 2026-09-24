@@ -20,6 +20,8 @@ export default function PostsScreen() {
   const [images, setImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [videos, setVideos] = useState([]);
+  // URIs that failed to load; used to hide broken images (no blank grey box).
+  const [failedImages, setFailedImages] = useState({});
 
   useEffect(() => { if (user?.id) loadPosts(); }, [user]);
 
@@ -85,13 +87,30 @@ export default function PostsScreen() {
   // Resolve an image entry (string URL or object) to a displayable URI.
   const resolveImageUri = (entry) => {
     if (!entry) return null;
-    const raw = typeof entry === 'string' ? entry : (entry.url || entry.imageUrl || entry.uri || '');
-    if (!raw) return null;
+    // Accept a plain string, or an object under any of the common field names
+    // the backend may use for a media item.
+    const raw = typeof entry === 'string'
+      ? entry
+      : (entry.url || entry.imageUrl || entry.mediaUrl || entry.fileUrl || entry.path || entry.uri || entry.location || entry.fileName || '');
+    if (!raw || typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
     // Absolute URL or data URI — use as-is.
-    if (/^(https?:|data:|file:|blob:)/.test(raw)) return raw;
+    if (/^(https?:|data:|file:|blob:)/.test(trimmed)) return trimmed;
     // Relative path — prefix with the API host (strip trailing /api).
     const base = env.apiBaseUrl.replace(/\/api\/?$/, '');
-    return `${base}${raw.startsWith('/') ? '' : '/'}${raw}`;
+    return `${base}${trimmed.startsWith('/') ? '' : '/'}${trimmed}`;
+  };
+
+  // Gather media URLs from a post across the various shapes the backend uses.
+  const getPostImageUris = (item) => {
+    const candidates = [
+      item.imageUrls, item.images, item.mediaUrls, item.media,
+      item.attachments, item.photos, item.pictures,
+    ].find((c) => Array.isArray(c) && c.length > 0) || [];
+    // Some APIs return a single image field instead of an array.
+    const singles = [item.imageUrl, item.image, item.mediaUrl, item.pictureUrl].filter(Boolean);
+    return [...candidates, ...singles].map(resolveImageUri).filter(Boolean);
   };
 
   const renderPost = ({ item }) => (
@@ -119,12 +138,19 @@ export default function PostsScreen() {
 
       {/* Post image(s) */}
       {(() => {
-        const imgs = (item.imageUrls || item.images || []).map(resolveImageUri).filter(Boolean);
+        const imgs = getPostImageUris(item).filter((uri) => !failedImages[uri]);
         if (imgs.length === 0) return null;
         return (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.postImagesRow}>
             {imgs.map((uri, idx) => (
-              <Image key={idx} source={{ uri }} resizeMode="cover" style={[styles.postImage, imgs.length === 1 && { width: '100%', marginRight: 0 }]} />
+              <Image
+                key={idx}
+                source={{ uri }}
+                resizeMode="cover"
+                style={[styles.postImage, imgs.length === 1 && { width: '100%', marginRight: 0 }]}
+                // Drop images that fail to load so no blank grey box remains.
+                onError={() => setFailedImages((prev) => ({ ...prev, [uri]: true }))}
+              />
             ))}
           </ScrollView>
         );

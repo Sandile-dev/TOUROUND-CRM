@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Modal, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Modal, Alert, ScrollView, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -11,6 +12,8 @@ export default function MessagesScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -21,7 +24,6 @@ export default function MessagesScreen() {
 
   // New message modal
   const [showNewMsgModal, setShowNewMsgModal] = useState(false);
-  const [newMsgCustomerId, setNewMsgCustomerId] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [searchingCustomer, setSearchingCustomer] = useState(false);
   const [foundCustomer, setFoundCustomer] = useState(null);
@@ -29,6 +31,19 @@ export default function MessagesScreen() {
   useEffect(() => {
     if (user?.id) loadConversations();
   }, [user]);
+
+  // Track keyboard height so the chat input row can lift above the keyboard.
+  // We do this manually (rather than relying on KeyboardAvoidingView) because
+  // the chat is a bottom-tab screen and the tab bar otherwise steals the space.
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e) => setKeyboardHeight(e?.endCoordinates?.height || 0);
+    const onHide = () => setKeyboardHeight(0);
+    const showSub = Keyboard.addListener(showEvt, onShow);
+    const hideSub = Keyboard.addListener(hideEvt, onHide);
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   const loadConversations = async () => {
     try {
@@ -183,12 +198,11 @@ export default function MessagesScreen() {
           email: c.email || '',
           phone: c.phoneNumber || '',
         });
-        setNewMsgCustomerId(String(c.id));
       } else {
-        Alert.alert('Not Found', 'No customer found with that email or phone number. You can enter the customer ID directly below.');
+        Alert.alert('Not Found', 'No customer found with that email or phone number. Please check the details and try again.');
       }
     } catch {
-      Alert.alert('Error', 'Could not search right now. You can enter the customer ID directly below.');
+      Alert.alert('Error', 'Could not search right now. Please try again in a moment.');
     } finally {
       setSearchingCustomer(false);
     }
@@ -199,8 +213,11 @@ export default function MessagesScreen() {
   useRefreshOnFocus(useCallback(() => { loadConversations(); }, [user]));
 
   if (selectedConversation) {
+    // Lift the input row above the keyboard. On Android the window resizes, so
+    // we subtract the bottom inset that's already reclaimed; clamp at >= 0.
+    const inputLift = keyboardHeight > 0 ? Math.max(keyboardHeight - insets.bottom, 0) : 0;
     return (
-      <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.screen}>
         <View style={styles.chatHeader}>
           <TouchableOpacity style={[styles.chatBackBtn, { backgroundColor: colors.primary }]} onPress={() => setSelectedConversation(null)}>
             <Text style={styles.chatBackIcon}>{'‹'}</Text>
@@ -233,13 +250,14 @@ export default function MessagesScreen() {
           }}
           contentContainerStyle={styles.chatList}
         />
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { marginBottom: inputLift }]}>
           <TextInput
             style={styles.msgInput}
             placeholder="Type a message..."
             placeholderTextColor="#9ca3af"
             value={newMessage}
             onChangeText={setNewMessage}
+            multiline
           />
           <TouchableOpacity
             style={[styles.sendBtn, { backgroundColor: colors.primary }]}
@@ -249,7 +267,7 @@ export default function MessagesScreen() {
             <Text style={styles.sendBtnText}>➤</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     );
   }
 
@@ -305,7 +323,7 @@ export default function MessagesScreen() {
       >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <ScrollView
             style={styles.modalContent}
@@ -313,6 +331,7 @@ export default function MessagesScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Find a Customer</Text>
               <TouchableOpacity onPress={() => { setShowNewMsgModal(false); setFoundCustomer(null); setCustomerSearch(''); }}>
@@ -323,12 +342,13 @@ export default function MessagesScreen() {
             <Text style={styles.modalHint}>Search by email or phone number, then select the customer to message them.</Text>
             <View style={styles.searchRow}>
               <TextInput
-                style={[styles.modalInput, { flex: 1, marginBottom: 0 }]}
+                style={[styles.modalInput, { flex: 1, marginBottom: 0, height: 48 }]}
                 placeholder="Email or phone number"
                 placeholderTextColor="#9ca3af"
                 value={customerSearch}
                 onChangeText={setCustomerSearch}
                 autoCapitalize="none"
+                keyboardType="email-address"
                 onSubmitEditing={handleSearchCustomer}
                 returnKeyType="search"
               />
@@ -370,30 +390,11 @@ export default function MessagesScreen() {
               </TouchableOpacity>
             )}
 
-            {!foundCustomer && (
-              <>
-                <View style={styles.orRow}>
-                  <View style={styles.orLine} />
-                  <Text style={styles.orText}>or enter customer ID directly</Text>
-                  <View style={styles.orLine} />
-                </View>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Customer ID"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  value={newMsgCustomerId}
-                  onChangeText={setNewMsgCustomerId}
-                />
-                {newMsgCustomerId.trim() ? (
-                  <TouchableOpacity
-                    style={[styles.modalSendBtn, { backgroundColor: colors.primary }]}
-                    onPress={() => openConversationForCustomer({ id: Number(newMsgCustomerId), name: `Customer #${newMsgCustomerId}` })}
-                  >
-                    <Text style={styles.modalSendBtnText}>Message this customer</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </>
+            {!foundCustomer && !searchingCustomer && (
+              <View style={styles.searchEmptyState}>
+                <Text style={styles.searchEmptyIcon}>🔎</Text>
+                <Text style={styles.searchEmptyText}>Search for a customer by email or phone to start a conversation.</Text>
+              </View>
             )}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -438,17 +439,21 @@ const styles = StyleSheet.create({
   // FAB
   fab: { position: 'absolute', bottom: 24, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
   fabText: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginTop: -2 },
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  // Modal — anchored to the bottom as a sheet so it clears the keyboard.
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, maxHeight: '85%' },
+  modalHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', marginBottom: 12 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   modalClose: { fontSize: 22, color: '#6b7280', padding: 4 },
   modalLabel: { fontSize: 13, fontWeight: '500', color: '#6b7280', marginBottom: 4, marginTop: 8 },
-  modalHint: { fontSize: 11, color: '#9ca3af', marginBottom: 8 },
-  searchRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  searchBtn: { width: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  searchBtnText: { fontSize: 18 },
+  modalHint: { fontSize: 12, color: '#6b7280', marginBottom: 14, lineHeight: 17 },
+  searchRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  searchBtn: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  searchBtnText: { fontSize: 18, color: '#fff' },
+  searchEmptyState: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
+  searchEmptyIcon: { fontSize: 36, marginBottom: 10 },
+  searchEmptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', lineHeight: 19 },
   foundCustomerCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#bbf7d0' },
   foundAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   foundAvatarText: { fontSize: 14, fontWeight: '700' },

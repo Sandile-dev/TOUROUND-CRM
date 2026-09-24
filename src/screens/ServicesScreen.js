@@ -44,8 +44,14 @@ export default function ServicesScreen() {
 
   // Slot fields
   const [description, setDescription] = useState('');
+  // Adults/Kids sections are opt-in: the user taps "Add Adults" / "Add Kids"
+  // to reveal capacity/price/duration fields for that group.
+  const [slotHasAdults, setSlotHasAdults] = useState(false);
+  const [slotHasKids, setSlotHasKids] = useState(false);
   const [slotAdultCapacity, setSlotAdultCapacity] = useState('');
   const [slotChildCapacity, setSlotChildCapacity] = useState('');
+  const [slotAdultDuration, setSlotAdultDuration] = useState('');
+  const [slotChildDuration, setSlotChildDuration] = useState('');
   const [duration, setDuration] = useState('');
   const [listOfServices, setListOfServices] = useState('');
   const [slotAdultPrice, setSlotAdultPrice] = useState('');
@@ -93,7 +99,7 @@ export default function ServicesScreen() {
   const resetForm = () => {
     setRoomType(''); setPricePerNight(''); setAdultCapacity(''); setChildCapacity(''); setTotalNumberOfRooms(''); setRoomDescription('');
     setCapacity(''); setTotalNumberOfTables(''); setUpfrontPaymentRequired(true); setTablePrice(''); setTableDescription(''); setTableAddOns('');
-    setDescription(''); setSlotAdultCapacity(''); setSlotChildCapacity(''); setDuration(''); setListOfServices(''); setSlotAdultPrice(''); setSlotChildPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
+    setDescription(''); setSlotHasAdults(false); setSlotHasKids(false); setSlotAdultCapacity(''); setSlotChildCapacity(''); setSlotAdultDuration(''); setSlotChildDuration(''); setDuration(''); setListOfServices(''); setSlotAdultPrice(''); setSlotChildPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
     setServiceImages([]);
     setServiceVideos([]);
     setEditingItem(null);
@@ -121,13 +127,22 @@ export default function ServicesScreen() {
       setTableAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     } else {
       setDescription(item.description || '');
-      setSlotAdultCapacity(String(item.adultCapacity ?? item.capacity ?? ''));
-      setSlotChildCapacity(String(item.childCapacity ?? item.kidsCapacity ?? ''));
+      const adultCapVal = item.adultCapacity ?? item.capacity ?? 0;
+      const childCapVal = item.childCapacity ?? item.kidsCapacity ?? 0;
+      const hasAdults = Number(adultCapVal) > 0;
+      const hasKids = Number(childCapVal) > 0;
+      setSlotHasAdults(hasAdults);
+      setSlotHasKids(hasKids);
+      setSlotAdultCapacity(hasAdults ? String(adultCapVal) : '');
+      setSlotChildCapacity(hasKids ? String(childCapVal) : '');
       // Backend stores duration in minutes; the form edits in hours.
-      setDuration(item.duration ? String(item.duration / 60) : '');
+      const durationHours = item.duration ? String(item.duration / 60) : '';
+      setSlotAdultDuration(hasAdults ? (item.adultDuration ? String(item.adultDuration / 60) : durationHours) : '');
+      setSlotChildDuration(hasKids ? (item.childDuration ? String(item.childDuration / 60) : durationHours) : '');
+      setDuration(durationHours);
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
-      setSlotAdultPrice(String(item.adultPrice ?? item.slotPrice ?? ''));
-      setSlotChildPrice(String(item.childPrice ?? item.kidsPrice ?? ''));
+      setSlotAdultPrice(hasAdults ? String(item.adultPrice ?? item.slotPrice ?? '') : '');
+      setSlotChildPrice(hasKids ? String(item.childPrice ?? item.kidsPrice ?? '') : '');
       setSlotUpfrontPayment(item.upfrontPaymentRequired !== false);
       setSlotAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     }
@@ -198,21 +213,31 @@ export default function ServicesScreen() {
         const addOnsArray = slotAddOns.trim() ? slotAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const servicesArray = listOfServices.trim() ? listOfServices.split(',').map(s => s.trim()).filter(Boolean) : [];
         const toDecimal = (v) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : 0);
-        const adultCap = Number(slotAdultCapacity) || 0;
-        const childCap = Number(slotChildCapacity) || 0;
+        const toMinutes = (v) => (v ? Math.round(Number(v) * 60) : 0);
+        // Only include a group's values if the user opted into it.
+        const adultCap = slotHasAdults ? (Number(slotAdultCapacity) || 0) : 0;
+        const childCap = slotHasKids ? (Number(slotChildCapacity) || 0) : 0;
+        const adultDur = slotHasAdults ? toMinutes(slotAdultDuration) : 0;
+        const childDur = slotHasKids ? toMinutes(slotChildDuration) : 0;
+        const adultPriceVal = slotHasAdults ? toDecimal(slotAdultPrice) : 0;
+        const childPriceVal = slotHasKids ? toDecimal(slotChildPrice) : 0;
+        // Primary duration for compatibility: prefer the adult group, else kids.
+        const primaryDuration = adultDur || childDur;
         const data = {
           description,
           // Separate adult/kids capacity; keep total `capacity` for compatibility.
           adultCapacity: adultCap,
           childCapacity: childCap,
           capacity: adultCap + childCap,
-          // Duration is entered in hours; backend stores minutes.
-          duration: duration ? Math.round(Number(duration) * 60) : 0,
+          // Per-group duration (backend stores minutes); keep `duration` for compatibility.
+          adultDuration: adultDur,
+          childDuration: childDur,
+          duration: primaryDuration,
           listOfServices: servicesArray,
           // Separate adult/kids prices (raw decimals). Keep `slotPrice` = adult price for compatibility.
-          adultPrice: toDecimal(slotAdultPrice),
-          childPrice: toDecimal(slotChildPrice),
-          slotPrice: toDecimal(slotAdultPrice),
+          adultPrice: adultPriceVal,
+          childPrice: childPriceVal,
+          slotPrice: adultPriceVal || childPriceVal,
           // "Card or Cash" toggle: true = Card, false = Cash. Sent as boolean Yes/No.
           upfrontPaymentRequired: slotUpfrontPayment,
           availabilityStatus: 'available',
@@ -329,16 +354,52 @@ export default function ServicesScreen() {
         <>
           <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={description} onChangeText={setDescription} />
-          <Text style={styles.fieldLabel}>Adults Capacity</Text>
-          <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultCapacity} onChangeText={setSlotAdultCapacity} />
-          <Text style={styles.fieldLabel}>Adult Price</Text>
-          <TextInput style={styles.input} placeholder="Price per adult" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultPrice} onChangeText={setSlotAdultPrice} />
-          <Text style={styles.fieldLabel}>Kids Capacity</Text>
-          <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildCapacity} onChangeText={setSlotChildCapacity} />
-          <Text style={styles.fieldLabel}>Kids Price</Text>
-          <TextInput style={styles.input} placeholder="Price per kid" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildPrice} onChangeText={setSlotChildPrice} />
-          <Text style={styles.fieldLabel}>Duration (hours)</Text>
-          <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={duration} onChangeText={setDuration} />
+
+          {/* Capacity: opt into Adults and/or Kids */}
+          <Text style={styles.fieldLabel}>Capacity</Text>
+          {!slotHasAdults && (
+            <TouchableOpacity style={[styles.addGroupBtn, { borderColor: colors.primary }]} onPress={() => setSlotHasAdults(true)}>
+              <Text style={[styles.addGroupBtnText, { color: colors.primary }]}>+ Add Adults</Text>
+            </TouchableOpacity>
+          )}
+          {slotHasAdults && (
+            <View style={styles.groupBox}>
+              <View style={styles.groupHeader}>
+                <Text style={styles.groupTitle}>Adults</Text>
+                <TouchableOpacity onPress={() => { setSlotHasAdults(false); setSlotAdultCapacity(''); setSlotAdultPrice(''); setSlotAdultDuration(''); }}>
+                  <Text style={styles.groupRemove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.fieldLabel}>Capacity</Text>
+              <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultCapacity} onChangeText={setSlotAdultCapacity} />
+              <Text style={styles.fieldLabel}>Price</Text>
+              <TextInput style={styles.input} placeholder="Price per adult" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultPrice} onChangeText={setSlotAdultPrice} />
+              <Text style={styles.fieldLabel}>Duration (hours)</Text>
+              <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultDuration} onChangeText={setSlotAdultDuration} />
+            </View>
+          )}
+          {!slotHasKids && (
+            <TouchableOpacity style={[styles.addGroupBtn, { borderColor: colors.primary }]} onPress={() => setSlotHasKids(true)}>
+              <Text style={[styles.addGroupBtnText, { color: colors.primary }]}>+ Add Kids</Text>
+            </TouchableOpacity>
+          )}
+          {slotHasKids && (
+            <View style={styles.groupBox}>
+              <View style={styles.groupHeader}>
+                <Text style={styles.groupTitle}>Kids</Text>
+                <TouchableOpacity onPress={() => { setSlotHasKids(false); setSlotChildCapacity(''); setSlotChildPrice(''); setSlotChildDuration(''); }}>
+                  <Text style={styles.groupRemove}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.fieldLabel}>Capacity</Text>
+              <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildCapacity} onChangeText={setSlotChildCapacity} />
+              <Text style={styles.fieldLabel}>Price</Text>
+              <TextInput style={styles.input} placeholder="Price per kid" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildPrice} onChangeText={setSlotChildPrice} />
+              <Text style={styles.fieldLabel}>Duration (hours)</Text>
+              <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildDuration} onChangeText={setSlotChildDuration} />
+            </View>
+          )}
+
           <Text style={styles.fieldLabel}>List of Services</Text>
           <TextInput style={styles.input} placeholder="List of Services (comma separated)" placeholderTextColor="#9ca3af" value={listOfServices} onChangeText={setListOfServices} />
           <Text style={styles.fieldLabel}>Add-Ons</Text>
@@ -487,18 +548,28 @@ export default function ServicesScreen() {
             {renderServicesChips(item.listOfServices)}
           </View>
           <View style={styles.cardBody}>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Adults</Text>
-              <Text style={styles.detailValue}>{item.adultCapacity ?? item.capacity ?? 0} · R{item.adultPrice ?? item.slotPrice ?? 0}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Kids</Text>
-              <Text style={styles.detailValue}>{item.childCapacity ?? 0} · R{item.childPrice ?? 0}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Duration</Text>
-              <Text style={styles.detailValue}>{item.duration ? (item.duration / 60) : 0} hr</Text>
-            </View>
+            {(() => {
+              const adultCap = Number(item.adultCapacity ?? item.capacity ?? 0);
+              const childCap = Number(item.childCapacity ?? 0);
+              const adultDur = item.adultDuration ? item.adultDuration / 60 : (item.duration ? item.duration / 60 : 0);
+              const childDur = item.childDuration ? item.childDuration / 60 : (item.duration ? item.duration / 60 : 0);
+              return (
+                <>
+                  {adultCap > 0 && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Adults</Text>
+                      <Text style={styles.detailValue}>{adultCap} · R{item.adultPrice ?? item.slotPrice ?? 0}{adultDur ? ` · ${adultDur} hr` : ''}</Text>
+                    </View>
+                  )}
+                  {childCap > 0 && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Kids</Text>
+                      <Text style={styles.detailValue}>{childCap} · R{item.childPrice ?? 0}{childDur ? ` · ${childDur} hr` : ''}</Text>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Payment</Text>
               <Text style={styles.detailValue}>{item.upfrontPaymentRequired ? 'Card' : 'Cash'}</Text>
@@ -603,6 +674,12 @@ const styles = StyleSheet.create({
   dropdownOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   dropdownOptionText: { fontSize: 15, color: '#111827' },
   dropdownCheck: { fontSize: 16, fontWeight: '700' },
+  addGroupBtn: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
+  addGroupBtnText: { fontSize: 14, fontWeight: '600' },
+  groupBox: { backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eef0f2' },
+  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  groupTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  groupRemove: { fontSize: 12, fontWeight: '600', color: '#dc2626' },
   toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
   toggleLabel: { fontSize: 14, color: '#374151' },
   toggle: { backgroundColor: '#e5e7eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
