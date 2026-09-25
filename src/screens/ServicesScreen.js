@@ -44,13 +44,10 @@ export default function ServicesScreen() {
 
   // Slot fields
   const [description, setDescription] = useState('');
-  // A slot has a single capacity, price and duration. Adults/Kids are opt-in
-  // GUEST COUNTS only (numberOfAdults / numberOfChildrens per the API), not
-  // separate priced groups.
-  const [slotHasAdults, setSlotHasAdults] = useState(false);
-  const [slotHasKids, setSlotHasKids] = useState(false);
-  const [slotNumberOfAdults, setSlotNumberOfAdults] = useState('');
-  const [slotNumberOfChildren, setSlotNumberOfChildren] = useState('');
+  // Each slot targets a single audience (Adults or Kids) and carries its own
+  // capacity, price and duration. Audience maps to the API's guest-count fields:
+  // ADULTS -> numberOfAdults = capacity; KIDS -> numberOfChildrens = capacity.
+  const [slotAudience, setSlotAudience] = useState('ADULTS');
   const [slotCapacity, setSlotCapacity] = useState('');
   const [duration, setDuration] = useState('');
   const [listOfServices, setListOfServices] = useState('');
@@ -98,7 +95,7 @@ export default function ServicesScreen() {
   const resetForm = () => {
     setRoomType(''); setPricePerNight(''); setAdultCapacity(''); setChildCapacity(''); setTotalNumberOfRooms(''); setRoomDescription('');
     setCapacity(''); setTotalNumberOfTables(''); setUpfrontPaymentRequired(true); setTablePrice(''); setTableDescription(''); setTableAddOns('');
-    setDescription(''); setSlotHasAdults(false); setSlotHasKids(false); setSlotNumberOfAdults(''); setSlotNumberOfChildren(''); setSlotCapacity(''); setDuration(''); setListOfServices(''); setSlotPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
+    setDescription(''); setSlotAudience('ADULTS'); setSlotCapacity(''); setDuration(''); setListOfServices(''); setSlotPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
     setServiceImages([]);
     setServiceVideos([]);
     setEditingItem(null);
@@ -126,15 +123,12 @@ export default function ServicesScreen() {
       setTableAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     } else {
       setDescription(item.description || '');
-      const adultsVal = item.numberOfAdults ?? 0;
-      const childrenVal = item.numberOfChildrens ?? item.numberOfChildren ?? 0;
-      const hasAdults = Number(adultsVal) > 0;
-      const hasKids = Number(childrenVal) > 0;
-      setSlotHasAdults(hasAdults);
-      setSlotHasKids(hasKids);
-      setSlotNumberOfAdults(hasAdults ? String(adultsVal) : '');
-      setSlotNumberOfChildren(hasKids ? String(childrenVal) : '');
-      setSlotCapacity(String(item.capacity ?? ''));
+      // Determine the slot's audience from its guest counts.
+      const adultsVal = Number(item.numberOfAdults ?? 0);
+      const childrenVal = Number(item.numberOfChildrens ?? item.numberOfChildren ?? 0);
+      const audience = childrenVal > 0 && adultsVal === 0 ? 'KIDS' : 'ADULTS';
+      setSlotAudience(audience);
+      setSlotCapacity(String(item.capacity ?? (audience === 'KIDS' ? childrenVal : adultsVal) ?? ''));
       // Duration is a free-text string (e.g. "2 hours").
       setDuration(item.duration != null ? String(item.duration) : '');
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
@@ -209,15 +203,18 @@ export default function ServicesScreen() {
         const addOnsArray = slotAddOns.trim() ? slotAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const servicesArray = listOfServices.trim() ? listOfServices.split(',').map(s => s.trim()).filter(Boolean) : [];
         const toDecimal = (v) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : 0);
-        const numAdults = slotHasAdults ? (Number(slotNumberOfAdults) || 0) : 0;
-        const numChildren = slotHasKids ? (Number(slotNumberOfChildren) || 0) : 0;
         const capacityVal = Number(slotCapacity) || 0;
+        // Each slot targets one audience. Map capacity to the matching guest
+        // count so the slot's price/duration belong entirely to that audience.
+        const isKids = slotAudience === 'KIDS';
+        const numAdults = isKids ? 0 : capacityVal;
+        const numChildren = isKids ? capacityVal : 0;
         // Payload matches BusinessSlotController: single capacity/price, a
         // free-text duration, and adult/child GUEST COUNTS.
         const data = {
           description,
           capacity: capacityVal,
-          totalNumberOfGuests: numAdults + numChildren,
+          totalNumberOfGuests: capacityVal,
           duration: duration.trim(),
           numberOfAdults: numAdults,
           numberOfChildrens: numChildren,
@@ -335,54 +332,37 @@ export default function ServicesScreen() {
     } else {
       return (
         <>
+          {/* Audience: each slot targets Adults or Kids, with its own fields. */}
+          <Text style={styles.fieldLabel}>Audience</Text>
+          <View style={styles.segmentRow}>
+            {['ADULTS', 'KIDS'].map((aud) => {
+              const active = slotAudience === aud;
+              return (
+                <TouchableOpacity
+                  key={aud}
+                  style={[styles.segmentBtn, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                  onPress={() => setSlotAudience(aud)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentText, active && { color: '#fff' }]}>
+                    {aud === 'ADULTS' ? 'Adults' : 'Kids'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={description} onChangeText={setDescription} />
 
-          <Text style={styles.fieldLabel}>Capacity</Text>
-          <TextInput style={styles.input} placeholder="Total capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotCapacity} onChangeText={setSlotCapacity} />
+          <Text style={styles.fieldLabel}>Capacity ({slotAudience === 'KIDS' ? 'number of kids' : 'number of adults'})</Text>
+          <TextInput style={styles.input} placeholder="Capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotCapacity} onChangeText={setSlotCapacity} />
 
           <Text style={styles.fieldLabel}>Price</Text>
           <TextInput style={styles.input} placeholder="Slot price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotPrice} onChangeText={setSlotPrice} />
 
           <Text style={styles.fieldLabel}>Duration</Text>
           <TextInput style={styles.input} placeholder="e.g. 2 hours" placeholderTextColor="#9ca3af" value={duration} onChangeText={setDuration} />
-
-          {/* Guests: opt into Adults and/or Kids counts */}
-          <Text style={styles.fieldLabel}>Guests</Text>
-          {!slotHasAdults && (
-            <TouchableOpacity style={[styles.addGroupBtn, { borderColor: colors.primary }]} onPress={() => setSlotHasAdults(true)}>
-              <Text style={[styles.addGroupBtnText, { color: colors.primary }]}>+ Add Adults</Text>
-            </TouchableOpacity>
-          )}
-          {slotHasAdults && (
-            <View style={styles.groupBox}>
-              <View style={styles.groupHeader}>
-                <Text style={styles.groupTitle}>Adults</Text>
-                <TouchableOpacity onPress={() => { setSlotHasAdults(false); setSlotNumberOfAdults(''); }}>
-                  <Text style={styles.groupRemove}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.fieldLabel}>Number of adults</Text>
-              <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotNumberOfAdults} onChangeText={setSlotNumberOfAdults} />
-            </View>
-          )}
-          {!slotHasKids && (
-            <TouchableOpacity style={[styles.addGroupBtn, { borderColor: colors.primary }]} onPress={() => setSlotHasKids(true)}>
-              <Text style={[styles.addGroupBtnText, { color: colors.primary }]}>+ Add Kids</Text>
-            </TouchableOpacity>
-          )}
-          {slotHasKids && (
-            <View style={styles.groupBox}>
-              <View style={styles.groupHeader}>
-                <Text style={styles.groupTitle}>Kids</Text>
-                <TouchableOpacity onPress={() => { setSlotHasKids(false); setSlotNumberOfChildren(''); }}>
-                  <Text style={styles.groupRemove}>Remove</Text>
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.fieldLabel}>Number of kids</Text>
-              <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotNumberOfChildren} onChangeText={setSlotNumberOfChildren} />
-            </View>
-          )}
 
           <Text style={styles.fieldLabel}>List of Services</Text>
           <TextInput style={styles.input} placeholder="List of Services (comma separated)" placeholderTextColor="#9ca3af" value={listOfServices} onChangeText={setListOfServices} />
@@ -517,29 +497,37 @@ export default function ServicesScreen() {
     } else {
       return (
         <View key={item.id} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Text style={[styles.cardTitle, { flex: 1 }]}>{item.description || 'Service Slot'}</Text>
-              <View style={styles.cardActions}>
-                <TouchableOpacity style={styles.actionIconBtn} onPress={() => openEditForm(item)}>
-                  <Text style={[styles.actionIcon, { color: colors.primary }]}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionIconBtn} onPress={() => handleDelete(item)}>
-                  <Text style={[styles.actionIcon, { color: '#dc2626' }]}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {renderServicesChips(item.listOfServices)}
-          </View>
-          <View style={styles.cardBody}>
-            {(() => {
-              const capacityVal = item.capacity ?? 0;
-              const priceVal = item.slotPrice ?? 0;
-              const durationVal = item.duration != null ? String(item.duration) : '';
-              const numAdults = Number(item.numberOfAdults ?? 0);
-              const numChildren = Number(item.numberOfChildrens ?? item.numberOfChildren ?? 0);
-              return (
-                <>
+          {(() => {
+            const numAdults = Number(item.numberOfAdults ?? 0);
+            const numChildren = Number(item.numberOfChildrens ?? item.numberOfChildren ?? 0);
+            const isKids = numChildren > 0 && numAdults === 0;
+            const audienceLabel = isKids ? 'Kids' : 'Adults';
+            const audienceColor = isKids ? '#7c3aed' : colors.primary;
+            const capacityVal = item.capacity ?? (isKids ? numChildren : numAdults) ?? 0;
+            const priceVal = item.slotPrice ?? 0;
+            const durationVal = item.duration != null ? String(item.duration) : '';
+            return (
+              <>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <Text style={[styles.cardTitle, { flex: 1 }]}>{item.description || 'Service Slot'}</Text>
+                    <View style={styles.cardActions}>
+                      <TouchableOpacity style={styles.actionIconBtn} onPress={() => openEditForm(item)}>
+                        <Text style={[styles.actionIcon, { color: colors.primary }]}>Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionIconBtn} onPress={() => handleDelete(item)}>
+                        <Text style={[styles.actionIcon, { color: '#dc2626' }]}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.audienceBadgeRow}>
+                    <View style={[styles.audienceBadge, { backgroundColor: audienceColor + '18' }]}>
+                      <Text style={[styles.audienceBadgeText, { color: audienceColor }]}>{audienceLabel}</Text>
+                    </View>
+                  </View>
+                  {renderServicesChips(item.listOfServices)}
+                </View>
+                <View style={styles.cardBody}>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Capacity</Text>
                     <Text style={styles.detailValue}>{capacityVal}</Text>
@@ -554,26 +542,14 @@ export default function ServicesScreen() {
                       <Text style={styles.detailValue}>{durationVal}</Text>
                     </View>
                   ) : null}
-                  {numAdults > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Adults</Text>
-                      <Text style={styles.detailValue}>{numAdults}</Text>
-                    </View>
-                  )}
-                  {numChildren > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Kids</Text>
-                      <Text style={styles.detailValue}>{numChildren}</Text>
-                    </View>
-                  )}
-                </>
-              );
-            })()}
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Payment</Text>
-              <Text style={styles.detailValue}>{item.upfrontPaymentRequired ? 'Card' : 'Cash'}</Text>
-            </View>
-          </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Payment</Text>
+                    <Text style={styles.detailValue}>{item.upfrontPaymentRequired ? 'Card' : 'Cash'}</Text>
+                  </View>
+                </View>
+              </>
+            );
+          })()}
           {renderAddOnsChips(item.addOns)}
           {renderImageThumbnails(item.imageUrls)}
         </View>
@@ -680,6 +656,12 @@ const styles = StyleSheet.create({
   dropdownOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   dropdownOptionText: { fontSize: 15, color: '#111827' },
   dropdownCheck: { fontSize: 16, fontWeight: '700' },
+  segmentRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  segmentBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', backgroundColor: '#fff' },
+  segmentText: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  audienceBadgeRow: { flexDirection: 'row', marginTop: 6 },
+  audienceBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  audienceBadgeText: { fontSize: 11, fontWeight: '700' },
   addGroupBtn: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
   addGroupBtnText: { fontSize: 14, fontWeight: '600' },
   groupBox: { backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eef0f2' },
