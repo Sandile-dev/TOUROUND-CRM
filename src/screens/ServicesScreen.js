@@ -137,8 +137,9 @@ export default function ServicesScreen() {
       setSlotChildCapacity(hasKids ? String(childCapVal) : '');
       // Backend stores duration in minutes; the form edits in hours.
       const durationHours = item.duration ? String(item.duration / 60) : '';
+      const childDurRaw = item.childDuration ?? item.kidsDuration;
       setSlotAdultDuration(hasAdults ? (item.adultDuration ? String(item.adultDuration / 60) : durationHours) : '');
-      setSlotChildDuration(hasKids ? (item.childDuration ? String(item.childDuration / 60) : durationHours) : '');
+      setSlotChildDuration(hasKids ? (childDurRaw ? String(childDurRaw / 60) : durationHours) : '');
       setDuration(durationHours);
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
       setSlotAdultPrice(hasAdults ? String(item.adultPrice ?? item.slotPrice ?? '') : '');
@@ -226,17 +227,22 @@ export default function ServicesScreen() {
         const data = {
           description,
           // Separate adult/kids capacity; keep total `capacity` for compatibility.
+          // Send both `child*` and `kids*` naming variants so the payload matches
+          // whichever the backend persists (some columns use kids*).
           adultCapacity: adultCap,
           childCapacity: childCap,
+          kidsCapacity: childCap,
           capacity: adultCap + childCap,
           // Per-group duration (backend stores minutes); keep `duration` for compatibility.
           adultDuration: adultDur,
           childDuration: childDur,
+          kidsDuration: childDur,
           duration: primaryDuration,
           listOfServices: servicesArray,
           // Separate adult/kids prices (raw decimals). Keep `slotPrice` = adult price for compatibility.
           adultPrice: adultPriceVal,
           childPrice: childPriceVal,
+          kidsPrice: childPriceVal,
           slotPrice: adultPriceVal || childPriceVal,
           // "Card or Cash" toggle: true = Card, false = Cash. Sent as boolean Yes/No.
           upfrontPaymentRequired: slotUpfrontPayment,
@@ -550,33 +556,40 @@ export default function ServicesScreen() {
           <View style={styles.cardBody}>
             {(() => {
               const adultCap = Number(item.adultCapacity ?? item.capacity ?? 0);
-              const childCap = Number(item.childCapacity ?? 0);
+              const childCap = Number(item.childCapacity ?? item.kidsCapacity ?? 0);
               const adultDur = item.adultDuration ? item.adultDuration / 60 : (item.duration ? item.duration / 60 : 0);
-              const childDur = item.childDuration ? item.childDuration / 60 : (item.duration ? item.duration / 60 : 0);
+              const childDurRaw = item.childDuration ?? item.kidsDuration;
+              const childDur = childDurRaw ? childDurRaw / 60 : (item.duration ? item.duration / 60 : 0);
               const adultPrice = item.adultPrice ?? item.slotPrice ?? 0;
-              const childPrice = item.childPrice ?? 0;
+              const childPrice = item.childPrice ?? item.kidsPrice ?? 0;
               const hasAdults = adultCap > 0;
               const hasKids = childCap > 0;
-              // Each attribute gets its own row. When both groups exist, the row
-              // value lists them together (e.g. "4 adults, 2 kids").
-              const join = (adultPart, kidPart) =>
-                [hasAdults ? adultPart : null, hasKids ? kidPart : null].filter(Boolean).join(', ');
-              return (
-                <>
+              // Render a group's own subsection (Capacity / Price / Duration),
+              // omitting values' group suffix. Hide the whole subsection if the
+              // group has no capacity.
+              const renderGroup = (label, cap, price, dur) => (
+                <View style={styles.groupSection}>
+                  <Text style={styles.groupSectionTitle}>{label}</Text>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Capacity</Text>
-                    <Text style={styles.detailValue}>{join(`${adultCap} adults`, `${childCap} kids`)}</Text>
+                    <Text style={styles.detailValue}>{cap}</Text>
                   </View>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Price</Text>
-                    <Text style={styles.detailValue}>{join(`R${adultPrice} adults`, `R${childPrice} kids`)}</Text>
+                    <Text style={styles.detailValue}>R{price}</Text>
                   </View>
-                  {(adultDur > 0 || childDur > 0) && (
+                  {dur > 0 && (
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Duration</Text>
-                      <Text style={styles.detailValue}>{join(`${adultDur} hr adults`, `${childDur} hr kids`)}</Text>
+                      <Text style={styles.detailValue}>{dur} hr</Text>
                     </View>
                   )}
+                </View>
+              );
+              return (
+                <>
+                  {hasAdults && renderGroup('Adults', adultCap, adultPrice, adultDur)}
+                  {hasKids && renderGroup('Kids', childCap, childPrice, childDur)}
                 </>
               );
             })()}
@@ -711,6 +724,8 @@ const styles = StyleSheet.create({
   actionIcon: { fontSize: 12, fontWeight: '600' },
   // Card body
   cardBody: { backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, gap: 8 },
+  groupSection: { gap: 8, paddingBottom: 10, marginBottom: 2, borderBottomWidth: 1, borderBottomColor: '#eef0f2' },
+  groupSectionTitle: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 2 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   detailLabel: { fontSize: 13, color: '#6b7280' },
   detailValue: { fontSize: 13, fontWeight: '600', color: '#111827' },
