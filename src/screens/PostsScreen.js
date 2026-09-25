@@ -140,6 +140,19 @@ export default function PostsScreen() {
       {(() => {
         const imgs = getPostImageUris(item).filter((uri) => !failedImages[uri]);
         if (imgs.length === 0) return null;
+        // Single image: render full-width directly. A percentage width inside a
+        // horizontal ScrollView collapses to zero, which is why single-image
+        // posts previously showed blank.
+        if (imgs.length === 1) {
+          return (
+            <Image
+              source={{ uri: imgs[0] }}
+              resizeMode="cover"
+              style={styles.postImageSingle}
+              onError={() => setFailedImages((prev) => ({ ...prev, [imgs[0]]: true }))}
+            />
+          );
+        }
         return (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.postImagesRow}>
             {imgs.map((uri, idx) => (
@@ -147,7 +160,7 @@ export default function PostsScreen() {
                 key={idx}
                 source={{ uri }}
                 resizeMode="cover"
-                style={[styles.postImage, imgs.length === 1 && { width: '100%', marginRight: 0 }]}
+                style={styles.postImage}
                 // Drop images that fail to load so no blank grey box remains.
                 onError={() => setFailedImages((prev) => ({ ...prev, [uri]: true }))}
               />
@@ -264,6 +277,7 @@ const styles = StyleSheet.create({
   postContent: { fontSize: 14, color: '#374151', lineHeight: 20, paddingHorizontal: 16, marginBottom: 10 },
   postImagesRow: { paddingHorizontal: 16, marginBottom: 10 },
   postImage: { width: 280, height: 180, borderRadius: 10, backgroundColor: '#e5e7eb', marginRight: 8 },
+  postImageSingle: { width: '100%', height: 240, backgroundColor: '#e5e7eb', marginBottom: 10 },
   postFooter: {
     flexDirection: 'row',
     paddingHorizontal: 16,
