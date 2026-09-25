@@ -553,18 +553,28 @@ export default function ServicesScreen() {
               const childCap = Number(item.childCapacity ?? 0);
               const adultDur = item.adultDuration ? item.adultDuration / 60 : (item.duration ? item.duration / 60 : 0);
               const childDur = item.childDuration ? item.childDuration / 60 : (item.duration ? item.duration / 60 : 0);
+              const adultPrice = item.adultPrice ?? item.slotPrice ?? 0;
+              const childPrice = item.childPrice ?? 0;
+              const hasAdults = adultCap > 0;
+              const hasKids = childCap > 0;
+              // Each attribute gets its own row. When both groups exist, the row
+              // value lists them together (e.g. "4 adults, 2 kids").
+              const join = (adultPart, kidPart) =>
+                [hasAdults ? adultPart : null, hasKids ? kidPart : null].filter(Boolean).join(', ');
               return (
                 <>
-                  {adultCap > 0 && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Capacity</Text>
+                    <Text style={styles.detailValue}>{join(`${adultCap} adults`, `${childCap} kids`)}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Price</Text>
+                    <Text style={styles.detailValue}>{join(`R${adultPrice} adults`, `R${childPrice} kids`)}</Text>
+                  </View>
+                  {(adultDur > 0 || childDur > 0) && (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Adults</Text>
-                      <Text style={styles.detailValue}>{adultCap} · R{item.adultPrice ?? item.slotPrice ?? 0}{adultDur ? ` · ${adultDur} hr` : ''}</Text>
-                    </View>
-                  )}
-                  {childCap > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Kids</Text>
-                      <Text style={styles.detailValue}>{childCap} · R{item.childPrice ?? 0}{childDur ? ` · ${childDur} hr` : ''}</Text>
+                      <Text style={styles.detailLabel}>Duration</Text>
+                      <Text style={styles.detailValue}>{join(`${adultDur} hr adults`, `${childDur} hr kids`)}</Text>
                     </View>
                   )}
                 </>
