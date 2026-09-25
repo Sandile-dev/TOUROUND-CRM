@@ -44,18 +44,17 @@ export default function ServicesScreen() {
 
   // Slot fields
   const [description, setDescription] = useState('');
-  // Adults/Kids sections are opt-in: the user taps "Add Adults" / "Add Kids"
-  // to reveal capacity/price/duration fields for that group.
+  // A slot has a single capacity, price and duration. Adults/Kids are opt-in
+  // GUEST COUNTS only (numberOfAdults / numberOfChildrens per the API), not
+  // separate priced groups.
   const [slotHasAdults, setSlotHasAdults] = useState(false);
   const [slotHasKids, setSlotHasKids] = useState(false);
-  const [slotAdultCapacity, setSlotAdultCapacity] = useState('');
-  const [slotChildCapacity, setSlotChildCapacity] = useState('');
-  const [slotAdultDuration, setSlotAdultDuration] = useState('');
-  const [slotChildDuration, setSlotChildDuration] = useState('');
+  const [slotNumberOfAdults, setSlotNumberOfAdults] = useState('');
+  const [slotNumberOfChildren, setSlotNumberOfChildren] = useState('');
+  const [slotCapacity, setSlotCapacity] = useState('');
   const [duration, setDuration] = useState('');
   const [listOfServices, setListOfServices] = useState('');
-  const [slotAdultPrice, setSlotAdultPrice] = useState('');
-  const [slotChildPrice, setSlotChildPrice] = useState('');
+  const [slotPrice, setSlotPrice] = useState('');
   // Payment mode toggle: true = Card (default), false = Cash. Sent to backend as Yes/No.
   const [slotUpfrontPayment, setSlotUpfrontPayment] = useState(true);
   const [slotAddOns, setSlotAddOns] = useState('');
@@ -99,7 +98,7 @@ export default function ServicesScreen() {
   const resetForm = () => {
     setRoomType(''); setPricePerNight(''); setAdultCapacity(''); setChildCapacity(''); setTotalNumberOfRooms(''); setRoomDescription('');
     setCapacity(''); setTotalNumberOfTables(''); setUpfrontPaymentRequired(true); setTablePrice(''); setTableDescription(''); setTableAddOns('');
-    setDescription(''); setSlotHasAdults(false); setSlotHasKids(false); setSlotAdultCapacity(''); setSlotChildCapacity(''); setSlotAdultDuration(''); setSlotChildDuration(''); setDuration(''); setListOfServices(''); setSlotAdultPrice(''); setSlotChildPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
+    setDescription(''); setSlotHasAdults(false); setSlotHasKids(false); setSlotNumberOfAdults(''); setSlotNumberOfChildren(''); setSlotCapacity(''); setDuration(''); setListOfServices(''); setSlotPrice(''); setSlotUpfrontPayment(true); setSlotAddOns('');
     setServiceImages([]);
     setServiceVideos([]);
     setEditingItem(null);
@@ -127,23 +126,19 @@ export default function ServicesScreen() {
       setTableAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     } else {
       setDescription(item.description || '');
-      const adultCapVal = item.adultCapacity ?? item.capacity ?? 0;
-      const childCapVal = item.childCapacity ?? item.kidsCapacity ?? 0;
-      const hasAdults = Number(adultCapVal) > 0;
-      const hasKids = Number(childCapVal) > 0;
+      const adultsVal = item.numberOfAdults ?? 0;
+      const childrenVal = item.numberOfChildrens ?? item.numberOfChildren ?? 0;
+      const hasAdults = Number(adultsVal) > 0;
+      const hasKids = Number(childrenVal) > 0;
       setSlotHasAdults(hasAdults);
       setSlotHasKids(hasKids);
-      setSlotAdultCapacity(hasAdults ? String(adultCapVal) : '');
-      setSlotChildCapacity(hasKids ? String(childCapVal) : '');
-      // Backend stores duration in minutes; the form edits in hours.
-      const durationHours = item.duration ? String(item.duration / 60) : '';
-      const childDurRaw = item.childDuration ?? item.kidsDuration;
-      setSlotAdultDuration(hasAdults ? (item.adultDuration ? String(item.adultDuration / 60) : durationHours) : '');
-      setSlotChildDuration(hasKids ? (childDurRaw ? String(childDurRaw / 60) : durationHours) : '');
-      setDuration(durationHours);
+      setSlotNumberOfAdults(hasAdults ? String(adultsVal) : '');
+      setSlotNumberOfChildren(hasKids ? String(childrenVal) : '');
+      setSlotCapacity(String(item.capacity ?? ''));
+      // Duration is a free-text string (e.g. "2 hours").
+      setDuration(item.duration != null ? String(item.duration) : '');
       setListOfServices(Array.isArray(item.listOfServices) ? item.listOfServices.join(', ') : (item.listOfServices || ''));
-      setSlotAdultPrice(hasAdults ? String(item.adultPrice ?? item.slotPrice ?? '') : '');
-      setSlotChildPrice(hasKids ? String(item.childPrice ?? item.kidsPrice ?? '') : '');
+      setSlotPrice(String(item.slotPrice ?? ''));
       setSlotUpfrontPayment(item.upfrontPaymentRequired !== false);
       setSlotAddOns(Array.isArray(item.addOns) ? item.addOns.join(', ') : (item.addOns || ''));
     }
@@ -214,46 +209,28 @@ export default function ServicesScreen() {
         const addOnsArray = slotAddOns.trim() ? slotAddOns.split(',').map(s => s.trim()).filter(Boolean) : [];
         const servicesArray = listOfServices.trim() ? listOfServices.split(',').map(s => s.trim()).filter(Boolean) : [];
         const toDecimal = (v) => (Number.isFinite(parseFloat(v)) ? parseFloat(v) : 0);
-        const toMinutes = (v) => (v ? Math.round(Number(v) * 60) : 0);
-        // Only include a group's values if the user opted into it.
-        const adultCap = slotHasAdults ? (Number(slotAdultCapacity) || 0) : 0;
-        const childCap = slotHasKids ? (Number(slotChildCapacity) || 0) : 0;
-        const adultDur = slotHasAdults ? toMinutes(slotAdultDuration) : 0;
-        const childDur = slotHasKids ? toMinutes(slotChildDuration) : 0;
-        const adultPriceVal = slotHasAdults ? toDecimal(slotAdultPrice) : 0;
-        const childPriceVal = slotHasKids ? toDecimal(slotChildPrice) : 0;
-        // Primary duration for compatibility: prefer the adult group, else kids.
-        const primaryDuration = adultDur || childDur;
+        const numAdults = slotHasAdults ? (Number(slotNumberOfAdults) || 0) : 0;
+        const numChildren = slotHasKids ? (Number(slotNumberOfChildren) || 0) : 0;
+        const capacityVal = Number(slotCapacity) || 0;
+        // Payload matches BusinessSlotController: single capacity/price, a
+        // free-text duration, and adult/child GUEST COUNTS.
         const data = {
           description,
-          // Separate adult/kids capacity; keep total `capacity` for compatibility.
-          // Send both `child*` and `kids*` naming variants so the payload matches
-          // whichever the backend persists (some columns use kids*).
-          adultCapacity: adultCap,
-          childCapacity: childCap,
-          kidsCapacity: childCap,
-          capacity: adultCap + childCap,
-          // Per-group duration (backend stores minutes); keep `duration` for compatibility.
-          adultDuration: adultDur,
-          childDuration: childDur,
-          kidsDuration: childDur,
-          duration: primaryDuration,
+          capacity: capacityVal,
+          totalNumberOfGuests: numAdults + numChildren,
+          duration: duration.trim(),
+          numberOfAdults: numAdults,
+          numberOfChildrens: numChildren,
           listOfServices: servicesArray,
-          // Separate adult/kids prices (raw decimals). Keep `slotPrice` = adult price for compatibility.
-          adultPrice: adultPriceVal,
-          childPrice: childPriceVal,
-          kidsPrice: childPriceVal,
-          slotPrice: adultPriceVal || childPriceVal,
-          // "Card or Cash" toggle: true = Card, false = Cash. Sent as boolean Yes/No.
-          upfrontPaymentRequired: slotUpfrontPayment,
-          availabilityStatus: 'available',
           addOns: addOnsArray,
+          upfrontPaymentRequired: slotUpfrontPayment,
+          slotPrice: toDecimal(slotPrice),
           businessUserId: user.id,
         };
         if (editingItem) {
           await businessService.updateSlot(editingItem.id, data);
         } else {
-          await businessService.createSlot(data, serviceImages);
+          await businessService.createSlot(data);
         }
       }
       resetForm();
@@ -361,8 +338,17 @@ export default function ServicesScreen() {
           <Text style={styles.fieldLabel}>Description</Text>
           <TextInput style={styles.input} placeholder="Description" placeholderTextColor="#9ca3af" value={description} onChangeText={setDescription} />
 
-          {/* Capacity: opt into Adults and/or Kids */}
           <Text style={styles.fieldLabel}>Capacity</Text>
+          <TextInput style={styles.input} placeholder="Total capacity" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotCapacity} onChangeText={setSlotCapacity} />
+
+          <Text style={styles.fieldLabel}>Price</Text>
+          <TextInput style={styles.input} placeholder="Slot price" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotPrice} onChangeText={setSlotPrice} />
+
+          <Text style={styles.fieldLabel}>Duration</Text>
+          <TextInput style={styles.input} placeholder="e.g. 2 hours" placeholderTextColor="#9ca3af" value={duration} onChangeText={setDuration} />
+
+          {/* Guests: opt into Adults and/or Kids counts */}
+          <Text style={styles.fieldLabel}>Guests</Text>
           {!slotHasAdults && (
             <TouchableOpacity style={[styles.addGroupBtn, { borderColor: colors.primary }]} onPress={() => setSlotHasAdults(true)}>
               <Text style={[styles.addGroupBtnText, { color: colors.primary }]}>+ Add Adults</Text>
@@ -372,16 +358,12 @@ export default function ServicesScreen() {
             <View style={styles.groupBox}>
               <View style={styles.groupHeader}>
                 <Text style={styles.groupTitle}>Adults</Text>
-                <TouchableOpacity onPress={() => { setSlotHasAdults(false); setSlotAdultCapacity(''); setSlotAdultPrice(''); setSlotAdultDuration(''); }}>
+                <TouchableOpacity onPress={() => { setSlotHasAdults(false); setSlotNumberOfAdults(''); }}>
                   <Text style={styles.groupRemove}>Remove</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.fieldLabel}>Capacity</Text>
-              <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultCapacity} onChangeText={setSlotAdultCapacity} />
-              <Text style={styles.fieldLabel}>Price</Text>
-              <TextInput style={styles.input} placeholder="Price per adult" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultPrice} onChangeText={setSlotAdultPrice} />
-              <Text style={styles.fieldLabel}>Duration (hours)</Text>
-              <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotAdultDuration} onChangeText={setSlotAdultDuration} />
+              <Text style={styles.fieldLabel}>Number of adults</Text>
+              <TextInput style={styles.input} placeholder="Number of adults" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotNumberOfAdults} onChangeText={setSlotNumberOfAdults} />
             </View>
           )}
           {!slotHasKids && (
@@ -393,16 +375,12 @@ export default function ServicesScreen() {
             <View style={styles.groupBox}>
               <View style={styles.groupHeader}>
                 <Text style={styles.groupTitle}>Kids</Text>
-                <TouchableOpacity onPress={() => { setSlotHasKids(false); setSlotChildCapacity(''); setSlotChildPrice(''); setSlotChildDuration(''); }}>
+                <TouchableOpacity onPress={() => { setSlotHasKids(false); setSlotNumberOfChildren(''); }}>
                   <Text style={styles.groupRemove}>Remove</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.fieldLabel}>Capacity</Text>
-              <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildCapacity} onChangeText={setSlotChildCapacity} />
-              <Text style={styles.fieldLabel}>Price</Text>
-              <TextInput style={styles.input} placeholder="Price per kid" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildPrice} onChangeText={setSlotChildPrice} />
-              <Text style={styles.fieldLabel}>Duration (hours)</Text>
-              <TextInput style={styles.input} placeholder="Duration (hours)" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotChildDuration} onChangeText={setSlotChildDuration} />
+              <Text style={styles.fieldLabel}>Number of kids</Text>
+              <TextInput style={styles.input} placeholder="Number of kids" placeholderTextColor="#9ca3af" keyboardType="numeric" value={slotNumberOfChildren} onChangeText={setSlotNumberOfChildren} />
             </View>
           )}
 
@@ -555,41 +533,39 @@ export default function ServicesScreen() {
           </View>
           <View style={styles.cardBody}>
             {(() => {
-              const adultCap = Number(item.adultCapacity ?? item.capacity ?? 0);
-              const childCap = Number(item.childCapacity ?? item.kidsCapacity ?? 0);
-              const adultDur = item.adultDuration ? item.adultDuration / 60 : (item.duration ? item.duration / 60 : 0);
-              const childDurRaw = item.childDuration ?? item.kidsDuration;
-              const childDur = childDurRaw ? childDurRaw / 60 : (item.duration ? item.duration / 60 : 0);
-              const adultPrice = item.adultPrice ?? item.slotPrice ?? 0;
-              const childPrice = item.childPrice ?? item.kidsPrice ?? 0;
-              const hasAdults = adultCap > 0;
-              const hasKids = childCap > 0;
-              // Render a group's own subsection (Capacity / Price / Duration),
-              // omitting values' group suffix. Hide the whole subsection if the
-              // group has no capacity.
-              const renderGroup = (label, cap, price, dur) => (
-                <View style={styles.groupSection}>
-                  <Text style={styles.groupSectionTitle}>{label}</Text>
+              const capacityVal = item.capacity ?? 0;
+              const priceVal = item.slotPrice ?? 0;
+              const durationVal = item.duration != null ? String(item.duration) : '';
+              const numAdults = Number(item.numberOfAdults ?? 0);
+              const numChildren = Number(item.numberOfChildrens ?? item.numberOfChildren ?? 0);
+              return (
+                <>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Capacity</Text>
-                    <Text style={styles.detailValue}>{cap}</Text>
+                    <Text style={styles.detailValue}>{capacityVal}</Text>
                   </View>
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Price</Text>
-                    <Text style={styles.detailValue}>R{price}</Text>
+                    <Text style={styles.detailValue}>R{priceVal}</Text>
                   </View>
-                  {dur > 0 && (
+                  {durationVal ? (
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Duration</Text>
-                      <Text style={styles.detailValue}>{dur} hr</Text>
+                      <Text style={styles.detailValue}>{durationVal}</Text>
+                    </View>
+                  ) : null}
+                  {numAdults > 0 && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Adults</Text>
+                      <Text style={styles.detailValue}>{numAdults}</Text>
                     </View>
                   )}
-                </View>
-              );
-              return (
-                <>
-                  {hasAdults && renderGroup('Adults', adultCap, adultPrice, adultDur)}
-                  {hasKids && renderGroup('Kids', childCap, childPrice, childDur)}
+                  {numChildren > 0 && (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Kids</Text>
+                      <Text style={styles.detailValue}>{numChildren}</Text>
+                    </View>
+                  )}
                 </>
               );
             })()}
@@ -631,24 +607,31 @@ export default function ServicesScreen() {
           <Text style={styles.formTitle}>{editingItem ? 'Edit' : 'Add'} {serviceLabel.slice(0, -1)}</Text>
           {renderForm()}
 
-          {/* Add Images button */}
-          <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImages}>
-            <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>📷 Add Images</Text>
-          </TouchableOpacity>
-          {serviceImages.length > 0 && (
-            <View style={styles.thumbnailRow}>
-              {serviceImages.map((img, idx) => (
-                <Image key={idx} source={{ uri: img.uri }} style={styles.thumbnail} />
-              ))}
-            </View>
-          )}
+          {/* Media upload is only supported for rooms/tables (multipart).
+              Business slots use a JSON body with pre-hosted imageUrls, so the
+              file picker is hidden there to avoid picks that never save. */}
+          {getServiceType() !== 'slots' && (
+            <>
+              {/* Add Images button */}
+              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImages}>
+                <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>📷 Add Images</Text>
+              </TouchableOpacity>
+              {serviceImages.length > 0 && (
+                <View style={styles.thumbnailRow}>
+                  {serviceImages.map((img, idx) => (
+                    <Image key={idx} source={{ uri: img.uri }} style={styles.thumbnail} />
+                  ))}
+                </View>
+              )}
 
-          {/* Add Video button */}
-          <TouchableOpacity style={styles.imagePickerBtn} onPress={pickVideos}>
-            <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>🎥 Add Video</Text>
-          </TouchableOpacity>
-          {serviceVideos.length > 0 && (
-            <Text style={styles.videoCount}>{serviceVideos.length} video(s) selected</Text>
+              {/* Add Video button */}
+              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickVideos}>
+                <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>🎥 Add Video</Text>
+              </TouchableOpacity>
+              {serviceVideos.length > 0 && (
+                <Text style={styles.videoCount}>{serviceVideos.length} video(s) selected</Text>
+              )}
+            </>
           )}
 
           <TouchableOpacity
