@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import AppIcon from '../components/AppIcon';
 
 export default function ReviewsScreen() {
   const { user } = useContext(AuthContext);
@@ -68,19 +69,21 @@ export default function ReviewsScreen() {
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
     : '0.0';
 
-  const renderStars = (rating) => {
+  const renderStars = (rating, size = 14) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
-      stars.push(i <= rating ? '★' : '☆');
+      stars.push(
+        <AppIcon key={i} name={i <= rating ? 'star' : 'star-outline'} size={size} color="#f59e0b" />
+      );
     }
-    return stars.join('');
+    return <View style={styles.starsRow}>{stars}</View>;
   };
 
   return (
     <KeyboardAwareScroll style={styles.screen} contentContainerStyle={styles.screenContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Reviews</Text>
@@ -90,7 +93,7 @@ export default function ReviewsScreen() {
 
       <View style={[styles.avgCard, { borderColor: colors.primary + '40' }]}>
         <Text style={[styles.avgRating, { color: colors.primary }]}>{averageRating}</Text>
-        <Text style={styles.avgStars}>{renderStars(Math.round(averageRating))}</Text>
+        {renderStars(Math.round(averageRating), 18)}
         <Text style={styles.avgCount}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</Text>
       </View>
 
@@ -106,7 +109,7 @@ export default function ReviewsScreen() {
             <View key={review.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.customerName}>{review.customerName || 'Anonymous'}</Text>
-                <Text style={styles.stars}>{renderStars(review.rating || 0)}</Text>
+                {renderStars(review.rating || 0)}
               </View>
               <Text style={styles.comment}>{review.comment || review.review || ''}</Text>
               <Text style={styles.date}>
@@ -148,8 +151,9 @@ export default function ReviewsScreen() {
                 </View>
               ) : (
                 <TouchableOpacity style={styles.replyTrigger} onPress={() => openReply(review)}>
+                  <AppIcon name={existingReply ? 'create-outline' : 'arrow-undo-outline'} size={15} color={colors.primary} />
                   <Text style={[styles.replyTriggerText, { color: colors.primary }]}>
-                    {existingReply ? '✏️ Edit reply' : '↩️ Reply'}
+                    {existingReply ? 'Edit reply' : 'Reply'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -182,7 +186,8 @@ const styles = StyleSheet.create({
   replyBox: { marginTop: 10, paddingLeft: 10, borderLeftWidth: 3, backgroundColor: '#f9fafb', borderRadius: 4, paddingVertical: 8, paddingRight: 8 },
   replyLabel: { fontSize: 11, fontWeight: '700', color: '#6b7280', marginBottom: 2 },
   replyText: { fontSize: 13, color: '#374151', lineHeight: 18 },
-  replyTrigger: { marginTop: 10, alignSelf: 'flex-start' },
+  starsRow: { flexDirection: 'row', gap: 1 },
+  replyTrigger: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, alignSelf: 'flex-start' },
   replyTriggerText: { fontSize: 13, fontWeight: '600' },
   replyEditor: { marginTop: 10 },
   replyInput: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, color: '#111827', minHeight: 64, textAlignVertical: 'top' },

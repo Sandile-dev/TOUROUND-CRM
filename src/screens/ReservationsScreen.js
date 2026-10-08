@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert, R
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
 import DatePickerField from '../components/DatePickerField';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -302,7 +303,7 @@ export default function ReservationsScreen() {
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>Reservation Details</Text>
               <TouchableOpacity onPress={() => setDetailModal(false)}>
-                <Text style={styles.detailClose}>✕</Text>
+                <AppIcon name="close" size={22} color="#6b7280" />
               </TouchableOpacity>
             </View>
 

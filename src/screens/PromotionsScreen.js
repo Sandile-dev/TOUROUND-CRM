@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import promotionService from '../api/promotionService';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import AppIcon from '../components/AppIcon';
 import {
   resolveCategory,
   reservationTypeFor,
@@ -185,7 +186,7 @@ export default function PromotionsScreen() {
         <View style={styles.formHeader}>
           <Text style={styles.formTitle}>Create Promotion</Text>
           <TouchableOpacity onPress={() => { setShowForm(false); setForm(emptyForm); }}>
-            <Text style={styles.formClose}>✕</Text>
+            <AppIcon name="close" size={22} color="#6b7280" />
           </TouchableOpacity>
         </View>
         <TextInput style={styles.input} placeholder="Promotion Name" placeholderTextColor="#9ca3af" value={form.name} onChangeText={t => setForm({ ...form, name: t })} />
@@ -276,7 +277,10 @@ export default function PromotionsScreen() {
             </Text>
           </View>
           {(promo.startDate || promo.endDate) && (
-            <Text style={styles.promoDateRange}>📅 {promo.startDate || '—'} → {promo.endDate || '—'}</Text>
+            <View style={styles.promoDateRow}>
+              <AppIcon name="calendar-outline" size={13} color="#6b7280" />
+              <Text style={styles.promoDateRange}>{promo.startDate || '—'} → {promo.endDate || '—'}</Text>
+            </View>
           )}
           {promo.promoCode ? (
             <View style={styles.promoCodeRow}>
@@ -306,7 +310,7 @@ export default function PromotionsScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Promotions</Text>
@@ -323,7 +327,7 @@ export default function PromotionsScreen() {
           {renderForm()}
           {promotions.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={{ fontSize: 24, marginBottom: 8 }}>🏷️</Text>
+              <AppIcon name="pricetag-outline" size={28} color="#9ca3af" style={{ marginBottom: 8 }} />
               <Text style={styles.emptyText}>No promotions yet. Create your first one!</Text>
             </View>
           ) : (
@@ -371,7 +375,8 @@ const styles = StyleSheet.create({
   discountBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
   discountText: { fontSize: 13, fontWeight: '700' },
   promoMeta: { fontSize: 12, color: '#6b7280' },
-  promoDateRange: { fontSize: 12, color: '#6b7280', marginBottom: 6 },
+  promoDateRange: { fontSize: 12, color: '#6b7280' },
+  promoDateRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
   promoCodeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   promoCodeLabel: { fontSize: 12, color: '#6b7280', marginRight: 4 },
   promoCodeValue: { fontSize: 12, fontWeight: '700', color: '#374151', backgroundColor: '#f3f4f6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, fontFamily: 'monospace' },

@@ -378,7 +378,7 @@ export default function MessagesScreen() {
                   {foundCustomer.email ? <Text style={styles.foundDetail}>{foundCustomer.email}</Text> : null}
                   {foundCustomer.phone ? <Text style={styles.foundDetail}>{foundCustomer.phone}</Text> : null}
                 </View>
-                <Text style={[styles.foundCheck, { color: colors.primary }]}>{'›'}</Text>
+                <AppIcon name="chevron-forward" size={18} color={colors.primary} />
               </TouchableOpacity>
             )}
 

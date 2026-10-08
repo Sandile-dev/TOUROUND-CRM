@@ -3,6 +3,7 @@ import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -39,16 +40,20 @@ const Tab = createBottomTabNavigator();
 const MoreStackNav = createNativeStackNavigator();
 
 function TabIcon({ label, focused, color }) {
-  const icons = {
-    Home: '🏠',
-    Bookings: '📅',
-    Posts: '📝',
-    Chat: '💬',
-    More: '☰',
+  // Base Ionicons name per tab; append '-outline' when not focused.
+  const baseIcons = {
+    Home: 'home',
+    Bookings: 'calendar',
+    Posts: 'create',
+    Chat: 'chatbubble',
+    More: 'menu',
   };
+  const base = baseIcons[label] || 'ellipse';
+  // 'menu' has no outline variant; keep it as-is.
+  const iconName = focused || base === 'menu' ? base : `${base}-outline`;
   return (
     <View style={tabStyles.iconWrap}>
-      <Text style={[tabStyles.icon, focused && { opacity: 1 }]}>{icons[label] || '•'}</Text>
+      <Ionicons name={iconName} size={24} color={color} />
       <Text style={[tabStyles.label, { color }]} numberOfLines={1}>{label}</Text>
     </View>
   );

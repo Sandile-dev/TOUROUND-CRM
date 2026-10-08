@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import TopNavbar from '../components/TopNavbar';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -207,22 +208,22 @@ export default function DashboardScreen() {
             <View style={styles.section}>
               <View style={styles.statsGrid}>
                 <View style={styles.statCard}>
-                  <Text style={styles.statIcon}>💰</Text>
+                  <AppIcon name="cash-outline" size={24} color={colors.primary} style={styles.statIcon} />
                   <Text style={[styles.statCardValue, { color: colors.primary }]}>R{stats.totalSales.toLocaleString()}</Text>
                   <Text style={styles.statCardLabel}>Revenue</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <Text style={styles.statIcon}>👥</Text>
+                  <AppIcon name="people-outline" size={24} color={colors.primary} style={styles.statIcon} />
                   <Text style={styles.statCardValue}>{stats.totalCustomers}</Text>
                   <Text style={styles.statCardLabel}>Customers</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <Text style={styles.statIcon}>📅</Text>
+                  <AppIcon name="calendar-outline" size={24} color={colors.primary} style={styles.statIcon} />
                   <Text style={styles.statCardValue}>{stats.totalReservations}</Text>
                   <Text style={styles.statCardLabel}>{isRoomBooking ? 'Bookings' : 'Reservations'}</Text>
                 </View>
                 <View style={styles.statCard}>
-                  <Text style={styles.statIcon}>📉</Text>
+                  <AppIcon name="trending-down-outline" size={24} color="#dc2626" style={styles.statIcon} />
                   <Text style={[styles.statCardValue, { color: '#dc2626' }]}>R{stats.totalLoss.toLocaleString()}</Text>
                   <Text style={styles.statCardLabel}>Loss</Text>
                 </View>

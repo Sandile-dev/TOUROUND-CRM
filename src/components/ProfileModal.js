@@ -79,7 +79,7 @@ export default function ProfileModal({ visible, onClose }) {
 
           {/* Menu items */}
           <TouchableOpacity style={styles.menuItem} onPress={() => handleNav('MoreTab', { screen: 'Settings' })}>
-            <Text style={styles.menuIcon}>👤</Text>
+            <AppIcon name="person-outline" size={20} color={colors.primary} style={styles.menuIcon} />
             <Text style={styles.menuLabel}>Profile</Text>
           </TouchableOpacity>
 

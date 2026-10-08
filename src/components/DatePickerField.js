@@ -96,11 +96,11 @@ export default function DatePickerField({ value, onChange, minDate, placeholder 
             {/* Month navigation */}
             <View style={styles.header}>
               <TouchableOpacity style={styles.navBtn} onPress={() => changeMonth(-1)}>
-                <Text style={styles.navText}>‹</Text>
+                <AppIcon name="chevron-back" size={20} color={colors.primary} />
               </TouchableOpacity>
               <Text style={styles.monthLabel}>{MONTHS[month]} {year}</Text>
               <TouchableOpacity style={styles.navBtn} onPress={() => changeMonth(1)}>
-                <Text style={styles.navText}>›</Text>
+                <AppIcon name="chevron-forward" size={20} color={colors.primary} />
               </TouchableOpacity>
             </View>
 

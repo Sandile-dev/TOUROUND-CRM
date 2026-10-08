@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import LocationPicker from '../components/LocationPicker';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import AppIcon from '../components/AppIcon';
 import { appendFilePart } from '../utils/fileUpload';
 
 export default function SettingsScreen() {
@@ -134,7 +135,7 @@ export default function SettingsScreen() {
             </View>
           )}
           <View style={styles.coverEditBadge}>
-            <Text style={styles.coverEditIcon}>📷</Text>
+            <AppIcon name="camera" size={16} color="#fff" />
           </View>
         </TouchableOpacity>
 
@@ -149,7 +150,7 @@ export default function SettingsScreen() {
               </View>
             )}
             <View style={styles.avatarEditBadge}>
-              <Text style={styles.avatarEditIcon}>📷</Text>
+              <AppIcon name="camera" size={14} color="#fff" />
             </View>
           </TouchableOpacity>
         </View>

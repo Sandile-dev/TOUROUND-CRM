@@ -595,7 +595,7 @@ export default function TicketsScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-            <Text style={styles.backIcon}>{'‹'}</Text>
+            <AppIcon name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.title}>Events & Tickets</Text>

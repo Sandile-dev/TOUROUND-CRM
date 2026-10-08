@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import paymentService from '../api/paymentService';
+import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings } from '../constants/attractions';
 
 const COMMISSION_RATE = 0.15;
@@ -289,7 +290,10 @@ export default function PaymentsScreen() {
         {/* Commission Owed Banner */}
         {hasReservations && commissionOwed > 0 && (
           <View style={styles.commissionBanner}>
-            <Text style={styles.commissionLabel}>⚠️ Commission Owed to Touround</Text>
+            <View style={styles.commissionLabelRow}>
+              <AppIcon name="warning-outline" size={15} color="rgba(255,255,255,0.9)" />
+              <Text style={styles.commissionLabel}>Commission Owed to Touround</Text>
+            </View>
             <Text style={styles.commissionAmount}>R{commissionOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
             <Text style={styles.commissionSub}>20% commission on cash payments</Text>
           </View>
@@ -299,19 +303,31 @@ export default function PaymentsScreen() {
         <Text style={styles.sectionTitle}>Earnings Breakdown</Text>
         <View style={styles.card}>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>💳 Gross Sales</Text>
+            <View style={styles.breakdownLabelRow}>
+              <AppIcon name="card-outline" size={15} color="#374151" />
+              <Text style={styles.breakdownLabel}>Gross Sales</Text>
+            </View>
             <Text style={styles.breakdownValue}>R{earnings.grossSales?.toLocaleString()}</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>🏢 Platform Fee (15%)</Text>
+            <View style={styles.breakdownLabelRow}>
+              <AppIcon name="business-outline" size={15} color="#374151" />
+              <Text style={styles.breakdownLabel}>Platform Fee (15%)</Text>
+            </View>
             <Text style={[styles.breakdownValue, { color: '#dc2626' }]}>-R{earnings.platformFee?.toLocaleString()}</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>⚙️ Service Fee (5%)</Text>
+            <View style={styles.breakdownLabelRow}>
+              <AppIcon name="settings-outline" size={15} color="#374151" />
+              <Text style={styles.breakdownLabel}>Service Fee (5%)</Text>
+            </View>
             <Text style={[styles.breakdownValue, { color: '#dc2626' }]}>-R{earnings.serviceFee?.toLocaleString()}</Text>
           </View>
           <View style={[styles.breakdownRow, { borderTopWidth: 1, borderTopColor: '#e5e7eb', paddingTop: 10, marginTop: 6 }]}>
-            <Text style={[styles.breakdownLabel, { fontWeight: '700' }]}>✅ Net Earnings</Text>
+            <View style={styles.breakdownLabelRow}>
+              <AppIcon name="checkmark-circle-outline" size={15} color="#166534" />
+              <Text style={[styles.breakdownLabel, { fontWeight: '700' }]}>Net Earnings</Text>
+            </View>
             <Text style={[styles.breakdownValue, { fontWeight: '700', color: '#166534' }]}>R{earnings.netEarnings?.toLocaleString()}</Text>
           </View>
         </View>
@@ -418,7 +434,8 @@ export default function PaymentsScreen() {
           </TouchableOpacity>
           {commissionOwed > 0 && (
             <TouchableOpacity style={[styles.cashActionBtn, { backgroundColor: '#dc2626' }]} onPress={handleSettleCommission}>
-              <Text style={styles.cashActionBtnText}>💳 Settle Commission</Text>
+              <AppIcon name="card-outline" size={16} color="#fff" />
+              <Text style={styles.cashActionBtnText}>Settle Commission</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -563,7 +580,7 @@ export default function PaymentsScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Payments & Earnings</Text>
@@ -608,7 +625,7 @@ export default function PaymentsScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Record a Payment</Text>
-              <TouchableOpacity onPress={() => setShowCashModal(false)}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowCashModal(false)}><AppIcon name="close" size={22} color="#6b7280" /></TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>Record a cash payment, or send the customer an Ozow online payment link. Cash payments add 20% commission to your owed balance.</Text>
             <Text style={styles.fieldLabel}>Booking Reference</Text>
@@ -620,11 +637,13 @@ export default function PaymentsScreen() {
                 <Text style={styles.commPreviewText}>Commission: R{(parseFloat(cashForm.amount || 0) * (COMMISSION_RATE + DELIVERY_FEE_RATE)).toFixed(2)} · You keep: R{(parseFloat(cashForm.amount || 0) * 0.8).toFixed(2)}</Text>
               </View>
             ) : null}
-            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={handleRecordCash} disabled={submitting}>
-              <Text style={styles.primaryBtnText}>{submitting ? 'Working...' : '💵 Record Cash Payment'}</Text>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16, flexDirection: 'row', gap: 8 }]} onPress={handleRecordCash} disabled={submitting}>
+              {!submitting && <AppIcon name="cash-outline" size={16} color="#fff" />}
+              <Text style={styles.primaryBtnText}>{submitting ? 'Working...' : 'Record Cash Payment'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtn, styles.ozowBtn]} onPress={handleRequestOzow} disabled={submitting}>
-              <Text style={[styles.primaryBtnText, { color: colors.primary }]}>{submitting ? 'Working...' : '🔗 Send Online Payment Link (Ozow)'}</Text>
+            <TouchableOpacity style={[styles.primaryBtn, styles.ozowBtn, { flexDirection: 'row', gap: 8 }]} onPress={handleRequestOzow} disabled={submitting}>
+              {!submitting && <AppIcon name="link-outline" size={16} color={colors.primary} />}
+              <Text style={[styles.primaryBtnText, { color: colors.primary }]}>{submitting ? 'Working...' : 'Send Online Payment Link (Ozow)'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -660,6 +679,7 @@ const styles = StyleSheet.create({
   // Commission banner
   commissionBanner: { backgroundColor: '#dc2626', borderRadius: 16, padding: 16, marginBottom: 12 },
   commissionLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
+  commissionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   commissionAmount: { color: '#fff', fontSize: 26, fontWeight: '700', marginTop: 4 },
   commissionSub: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 4 },
   // Section
@@ -669,6 +689,7 @@ const styles = StyleSheet.create({
   // Breakdown
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   breakdownLabel: { fontSize: 13, color: '#374151' },
+  breakdownLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   breakdownValue: { fontSize: 13, fontWeight: '600', color: '#111827' },
   // Stats
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
@@ -696,7 +717,7 @@ const styles = StyleSheet.create({
   payoutAmount: { fontSize: 18, fontWeight: '700', color: '#111827' },
   // Cash actions
   cashActions: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  cashActionBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
+  cashActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
   cashActionBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   // Settings / form
   fieldLabel: { fontSize: 12, fontWeight: '600', color: '#374151', marginTop: 10, marginBottom: 4 },

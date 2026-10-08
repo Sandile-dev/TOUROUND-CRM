@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollVi
 import { AuthContext } from '../../context/AuthContext';
 import authService from '../../api/authService';
 import storage from '../../utils/storage';
+import AppIcon from '../../components/AppIcon';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useContext(AuthContext);
@@ -77,7 +78,7 @@ export default function LoginScreen({ navigation }) {
               onSubmitEditing={handleSubmit}
             />
             <TouchableOpacity style={styles.eyeBtn} onPress={() => setSecureText(!secureText)}>
-              <Text style={styles.eyeIcon}>{secureText ? '👁️' : '🙈'}</Text>
+              <AppIcon name={secureText ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6b7280" />
             </TouchableOpacity>
           </View>
 

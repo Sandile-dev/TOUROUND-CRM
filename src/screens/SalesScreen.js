@@ -6,6 +6,7 @@ import * as Print from 'expo-print';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const PERIODS = ['all', 'week', 'month', 'quarter', 'year'];
@@ -144,13 +145,13 @@ export default function SalesScreen() {
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Sales</Text>
         </View>
         <TouchableOpacity style={[styles.exportBtn, { backgroundColor: colors.primary }]} onPress={exportPDF}>
-          <Text style={styles.exportBtnText}>📄</Text>
+          <AppIcon name="document-text-outline" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
 

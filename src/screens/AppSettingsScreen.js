@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, themeColors } from '../context/ThemeContext';
+import AppIcon from '../components/AppIcon';
 
 const colorOptions = [
   { key: 'blue', label: 'Blue', color: '#2bb5c4' },
@@ -23,7 +24,7 @@ export default function AppSettingsScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>App Settings</Text>
@@ -43,7 +44,7 @@ export default function AppSettingsScreen() {
               onPress={() => setThemeColor(opt.key)}
             >
               <View style={[styles.colorCircle, { backgroundColor: opt.color }]}>
-                {themeColor === opt.key && <Text style={styles.checkmark}>✓</Text>}
+                {themeColor === opt.key && <AppIcon name="checkmark" size={16} color="#fff" />}
               </View>
               <Text style={[styles.colorLabel, themeColor === opt.key && { color: opt.color, fontWeight: '600' }]}>{opt.label}</Text>
             </TouchableOpacity>
@@ -61,13 +62,13 @@ export default function AppSettingsScreen() {
           onPress={() => setDarkMode(false)}
         >
           <View style={styles.modeIconWrap}>
-            <Text style={styles.modeIcon}>☀️</Text>
+            <AppIcon name="sunny" size={20} color="#f59e0b" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modeTitle}>Light Mode</Text>
             <Text style={styles.modeDesc}>Bright and clean interface</Text>
           </View>
-          {!darkMode && <Text style={[styles.modeCheck, { color: colors.primary }]}>✓</Text>}
+          {!darkMode && <AppIcon name="checkmark" size={18} color={colors.primary} />}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -75,13 +76,13 @@ export default function AppSettingsScreen() {
           onPress={() => setDarkMode(true)}
         >
           <View style={[styles.modeIconWrap, { backgroundColor: '#1f2937' }]}>
-            <Text style={styles.modeIcon}>🌙</Text>
+            <AppIcon name="moon" size={20} color="#fbbf24" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modeTitle}>Dark Mode</Text>
             <Text style={styles.modeDesc}>Easy on the eyes at night</Text>
           </View>
-          {darkMode && <Text style={[styles.modeCheck, { color: colors.primary }]}>✓</Text>}
+          {darkMode && <AppIcon name="checkmark" size={18} color={colors.primary} />}
         </TouchableOpacity>
       </View>
     </ScrollView>

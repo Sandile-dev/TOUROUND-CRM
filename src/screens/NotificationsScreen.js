@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import AppIcon from '../components/AppIcon';
 
 export default function NotificationsScreen() {
   const { user } = useContext(AuthContext);
@@ -69,7 +70,7 @@ export default function NotificationsScreen() {
             {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}
           </Text>
         </View>
-        <Text style={styles.chevron}>{'›'}</Text>
+        <AppIcon name="chevron-forward" size={18} color="#9ca3af" />
       </TouchableOpacity>
     );
   };
@@ -98,7 +99,7 @@ export default function NotificationsScreen() {
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle} numberOfLines={2}>{detail?.subject || detail?.title || 'Notification'}</Text>
               <TouchableOpacity onPress={() => setDetail(null)}>
-                <Text style={styles.detailClose}>✕</Text>
+                <AppIcon name="close" size={22} color="#6b7280" />
               </TouchableOpacity>
             </View>
             {detail?.createdAt ? (

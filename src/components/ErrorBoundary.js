@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -26,7 +27,7 @@ export default class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.icon}>⚠️</Text>
+          <Ionicons name="warning" size={40} color="#f59e0b" style={styles.icon} />
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>
             {__DEV__ ? this.state.error?.message : 'An unexpected error occurred. Please try again.'}

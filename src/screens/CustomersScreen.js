@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function CustomersScreen() {
@@ -160,7 +161,7 @@ export default function CustomersScreen() {
     <View style={styles.screen}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Customers</Text>
@@ -218,7 +219,7 @@ export default function CustomersScreen() {
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>Customer Details</Text>
               <TouchableOpacity onPress={() => setDetailCustomer(null)}>
-                <Text style={styles.detailClose}>✕</Text>
+                <AppIcon name="close" size={22} color="#6b7280" />
               </TouchableOpacity>
             </View>
             {detailCustomer && (

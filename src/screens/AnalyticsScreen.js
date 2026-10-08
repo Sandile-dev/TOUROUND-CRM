@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function AnalyticsScreen() {
@@ -104,7 +105,7 @@ export default function AnalyticsScreen() {
     <ScrollView style={styles.screen} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Analytics</Text>
@@ -132,7 +133,10 @@ export default function AnalyticsScreen() {
             </View>
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Average Rating</Text>
-              <Text style={[styles.metricValue, { color: '#f59e0b' }]}>⭐ {metrics.averageRating}</Text>
+              <View style={styles.metricRatingRow}>
+                <AppIcon name="star" size={16} color="#f59e0b" />
+                <Text style={[styles.metricValue, { color: '#f59e0b' }]}>{metrics.averageRating}</Text>
+              </View>
             </View>
           </View>
 
@@ -192,6 +196,7 @@ const styles = StyleSheet.create({
   metricCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   metricLabel: { fontSize: 14, color: '#374151' },
   metricValue: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  metricRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e5e7eb' },
   statusRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, RefreshControl, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import staffService from '../api/staffService';
@@ -131,7 +132,7 @@ export default function StaffScreen() {
     return (
       <View style={styles.screen}>
         <View style={styles.emptyCard}>
-          <Text style={{ fontSize: 24, marginBottom: 8 }}>🔒</Text>
+          <AppIcon name="lock-closed-outline" size={28} color="#9ca3af" style={{ marginBottom: 8 }} />
           <Text style={styles.emptyText}>Only the business owner can manage staff members.</Text>
         </View>
       </View>
@@ -145,7 +146,7 @@ export default function StaffScreen() {
         <View style={styles.formHeader}>
           <Text style={styles.formTitle}>Add Staff Member</Text>
           <TouchableOpacity onPress={() => { setShowForm(false); setForm(emptyForm); }}>
-            <Text style={styles.formClose}>✕</Text>
+            <AppIcon name="close" size={22} color="#6b7280" />
           </TouchableOpacity>
         </View>
         <Text style={styles.fieldLabel}>First Name</Text>
@@ -242,7 +243,12 @@ export default function StaffScreen() {
                 <Text style={[styles.badgeText, { color: isActive ? '#166534' : '#991b1b' }]}>{member.status}</Text>
               </View>
             </View>
-            {member.phoneNumber && <Text style={styles.staffMeta}>📞 {member.phoneNumber}</Text>}
+            {member.phoneNumber && (
+              <View style={styles.staffMetaRow}>
+                <AppIcon name="call-outline" size={13} color="#6b7280" />
+                <Text style={styles.staffMeta}>{member.phoneNumber}</Text>
+              </View>
+            )}
             <Text style={styles.staffMeta}>Last login: {lastLogin}</Text>
           </View>
         </View>
@@ -266,7 +272,7 @@ export default function StaffScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Staff Management</Text>
@@ -283,7 +289,7 @@ export default function StaffScreen() {
           {renderCreateForm()}
           {staff.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={{ fontSize: 24, marginBottom: 8 }}>👥</Text>
+              <AppIcon name="people-outline" size={28} color="#9ca3af" style={{ marginBottom: 8 }} />
               <Text style={styles.emptyText}>No staff members yet. Add your first team member!</Text>
             </View>
           ) : (
@@ -362,6 +368,7 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, alignSelf: 'flex-start' },
   badgeText: { fontSize: 10, fontWeight: '700' },
   staffMeta: { fontSize: 11, color: '#9ca3af', marginTop: 3 },
+  staffMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
   staffActions: { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   actionBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6 },
   actionBtnText: { fontSize: 12, fontWeight: '600' },
