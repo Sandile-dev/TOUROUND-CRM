@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Dimensions, TouchableOpacity, Platform } from 'react-native';
 import TopNavbar from '../components/TopNavbar';
 import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
@@ -8,6 +7,16 @@ import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
+
+// react-native-chart-kit renders via react-native-svg, which is incompatible
+// with the installed react-native-web version and throws at render on web.
+// Load the charts on native only; web shows a lightweight fallback.
+let LineChart, BarChart;
+if (Platform.OS !== 'web') {
+  const chartKit = require('react-native-chart-kit');
+  LineChart = chartKit.LineChart;
+  BarChart = chartKit.BarChart;
+}
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -233,7 +242,9 @@ export default function DashboardScreen() {
             {/* Revenue Bar Chart */}
             <View style={styles.chartSection}>
               <Text style={styles.chartTitle}>Revenue</Text>
-              {revenueLabels.length > 0 ? (
+              {revenueLabels.length === 0 ? (
+                <Text style={styles.noDataText}>No revenue data for this period</Text>
+              ) : BarChart ? (
                 <BarChart
                   data={{ labels: revenueLabels, datasets: [{ data: revenueData.length > 0 ? revenueData : [0] }] }}
                   width={screenWidth - 32}
@@ -244,14 +255,16 @@ export default function DashboardScreen() {
                   showValuesOnTopOfBars
                 />
               ) : (
-                <Text style={styles.noDataText}>No revenue data for this period</Text>
+                <Text style={styles.noDataText}>Charts are available in the mobile app.</Text>
               )}
             </View>
 
             {/* Reservations Trend Line Chart */}
             <View style={styles.chartSection}>
               <Text style={styles.chartTitle}>{isRoomBooking ? 'Bookings' : 'Reservations'} Trend</Text>
-              {trendLabels.length > 0 ? (
+              {trendLabels.length === 0 ? (
+                <Text style={styles.noDataText}>No data for this period</Text>
+              ) : LineChart ? (
                 <LineChart
                   data={{ labels: trendLabels, datasets: [{ data: trendData.length > 0 ? trendData : [0] }] }}
                   width={screenWidth - 32}
@@ -262,7 +275,7 @@ export default function DashboardScreen() {
                   fromZero
                 />
               ) : (
-                <Text style={styles.noDataText}>No data for this period</Text>
+                <Text style={styles.noDataText}>Charts are available in the mobile app.</Text>
               )}
             </View>
 
