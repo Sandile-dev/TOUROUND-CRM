@@ -2,32 +2,33 @@ import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import AppIcon from '../components/AppIcon';
 
 const menuSections = [
   {
     title: 'Business',
     items: [
-      { screen: 'Services', icon: '\u{1F4CB}', label: 'Services' },
-      { screen: 'Tickets', icon: '\u{1F3AB}', label: 'Events & Tickets' },
-      { screen: 'Customers', icon: '\u{1F465}', label: 'Customers' },
-      { screen: 'Sales', icon: '\u{1F4B0}', label: 'Sales Report' },
-      { screen: 'Payments', icon: '\u{1F4B3}', label: 'Payments' },
-      { screen: 'Promotions', icon: '\u{1F3F7}', label: 'Promotions' },
-      { screen: 'Staff', icon: '\u{1F9D1}', label: 'Staff' },
+      { screen: 'Services', icon: 'briefcase-outline', label: 'Services' },
+      { screen: 'Tickets', icon: 'ticket-outline', label: 'Events & Tickets' },
+      { screen: 'Customers', icon: 'people-outline', label: 'Customers' },
+      { screen: 'Sales', icon: 'cash-outline', label: 'Sales Report' },
+      { screen: 'Payments', icon: 'card-outline', label: 'Payments' },
+      { screen: 'Promotions', icon: 'pricetag-outline', label: 'Promotions' },
+      { screen: 'Staff', icon: 'person-outline', label: 'Staff' },
     ],
   },
   {
     title: 'Insights',
     items: [
-      { screen: 'Reviews', icon: '\u{2B50}', label: 'Reviews' },
-      { screen: 'Analytics', icon: '\u{1F4C8}', label: 'Analytics' },
+      { screen: 'Reviews', icon: 'star-outline', label: 'Reviews' },
+      { screen: 'Analytics', icon: 'bar-chart-outline', label: 'Analytics' },
     ],
   },
   {
     title: 'Account',
     items: [
-      { screen: 'Settings', icon: '\u{1F464}', label: 'Profile Settings' },
-      { screen: 'AppSettings', icon: '\u{2699}', label: 'App Settings' },
+      { screen: 'Settings', icon: 'person-circle-outline', label: 'Profile Settings' },
+      { screen: 'AppSettings', icon: 'settings-outline', label: 'App Settings' },
     ],
   },
 ];
@@ -47,9 +48,9 @@ export default function MoreMenuScreen({ navigation }) {
               style={styles.menuItem}
               onPress={() => navigation.navigate(item.screen)}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <AppIcon name={item.icon} size={22} color={colors.primary} style={styles.menuIcon} />
               <Text style={styles.menuLabel}>{item.label}</Text>
-              <Text style={styles.chevron}>{'>'}</Text>
+              <AppIcon name="chevron-forward" size={20} color="#d1d5db" />
             </TouchableOpacity>
           ))}
         </View>
