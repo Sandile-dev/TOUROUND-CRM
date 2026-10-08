@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import * as Location from 'expo-location';
+import AppIcon from './AppIcon';
 
 let MapView, Marker;
 // Only import react-native-maps on native platforms
@@ -122,7 +123,10 @@ export default function LocationPicker({ value, latitude, longitude, onChange, a
           {loadingLocation ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.locateBtnText}>📍 Use my location</Text>
+            <View style={styles.locateBtnInner}>
+              <AppIcon name="locate-outline" size={16} color="#fff" />
+              <Text style={styles.locateBtnText}>Use my location</Text>
+            </View>
           )}
         </TouchableOpacity>
         {canShowMap && (
@@ -181,6 +185,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, padding: 12, fontSize: 14, color: '#111827' },
   actionsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
   locateBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
+  locateBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   locateBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   toggleBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, backgroundColor: '#f3f4f6' },
   toggleBtnText: { fontSize: 13, color: '#374151', fontWeight: '500' },

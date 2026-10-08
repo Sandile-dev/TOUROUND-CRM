@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import DatePickerField from '../components/DatePickerField';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -336,7 +337,7 @@ export default function TicketsScreen() {
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
           onPress={() => { resetForm(); setShowForm(!showForm); }}
         >
-          <Text style={styles.addBtnText}>{showForm ? '✕' : '+'}</Text>
+          <AppIcon name={showForm ? 'close' : 'add'} size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -372,7 +373,7 @@ export default function TicketsScreen() {
                 <Text style={[styles.dropdownTriggerText, !cat.name && styles.dropdownPlaceholder]}>
                   {cat.name || 'Select category'}
                 </Text>
-                <Text style={styles.dropdownCaret}>▾</Text>
+                <AppIcon name="chevron-down" size={16} color="#6b7280" />
               </TouchableOpacity>
               <TextInput
                 style={styles.input}
@@ -401,7 +402,8 @@ export default function TicketsScreen() {
 
           {/* Add Images */}
           <TouchableOpacity style={styles.mediaPickerBtn} onPress={pickImages}>
-            <Text style={[styles.mediaPickerBtnText, { color: colors.primary }]}>📷 Add Images</Text>
+            <AppIcon name="image-outline" size={16} color={colors.primary} />
+            <Text style={[styles.mediaPickerBtnText, { color: colors.primary }]}>Add Images</Text>
           </TouchableOpacity>
           {eventImages.length > 0 && (
             <View style={styles.thumbnailRow}>
@@ -413,7 +415,8 @@ export default function TicketsScreen() {
 
           {/* Add Video */}
           <TouchableOpacity style={styles.mediaPickerBtn} onPress={pickVideos}>
-            <Text style={[styles.mediaPickerBtnText, { color: colors.primary }]}>🎥 Add Video</Text>
+            <AppIcon name="videocam-outline" size={16} color={colors.primary} />
+            <Text style={[styles.mediaPickerBtnText, { color: colors.primary }]}>Add Video</Text>
           </TouchableOpacity>
           {eventVideos.length > 0 && (
             <Text style={styles.videoCount}>{eventVideos.length} video(s) selected</Text>
@@ -439,17 +442,33 @@ export default function TicketsScreen() {
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{event.name || event.eventName}</Text>
               <View style={styles.cardActions}>
-                <TouchableOpacity onPress={() => openEditForm(event)}><Text style={styles.editBtn}>✏️</Text></TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(event.id)}><Text style={styles.deleteBtn}>🗑️</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => openEditForm(event)}><AppIcon name="create-outline" size={18} color={colors.primary} /></TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(event.id)}><AppIcon name="trash-outline" size={18} color="#dc2626" /></TouchableOpacity>
               </View>
             </View>
-            <Text style={styles.cardDetail}>📅 {event.eventDate || event.date || 'TBD'} at {event.eventTime || event.time || 'TBD'}</Text>
-            <Text style={styles.cardDetail}>📍 {event.location || event.venue || 'TBD'}</Text>
+            <View style={styles.cardDetailRow}>
+              <AppIcon name="calendar-outline" size={14} color="#6b7280" />
+              <Text style={styles.cardDetail}>{event.eventDate || event.date || 'TBD'} at {event.eventTime || event.time || 'TBD'}</Text>
+            </View>
+            <View style={styles.cardDetailRow}>
+              <AppIcon name="location-outline" size={14} color="#6b7280" />
+              <Text style={styles.cardDetail}>{event.location || event.venue || 'TBD'}</Text>
+            </View>
             {(() => {
               const catLabel = event.tickeCategoryType || event.ticketCategoryType || event.category?.name || event.categoryName || (typeof event.category === 'string' ? event.category : null);
-              return catLabel ? <Text style={styles.cardDetail}>🏷️ {catLabel}</Text> : null;
+              return catLabel ? (
+                <View style={styles.cardDetailRow}>
+                  <AppIcon name="pricetag-outline" size={14} color="#6b7280" />
+                  <Text style={styles.cardDetail}>{catLabel}</Text>
+                </View>
+              ) : null;
             })()}
-            {event.soldTickets != null && <Text style={styles.cardDetail}>🎫 {event.soldTickets} tickets sold</Text>}
+            {event.soldTickets != null && (
+              <View style={styles.cardDetailRow}>
+                <AppIcon name="ticket-outline" size={14} color="#6b7280" />
+                <Text style={styles.cardDetail}>{event.soldTickets} tickets sold</Text>
+              </View>
+            )}
 
             {/* Existing ticket categories */}
             {event.ticketCategories && event.ticketCategories.length > 0 && (
@@ -519,7 +538,8 @@ export default function TicketsScreen() {
 
         {/* QR Scanner Button - always show */}
         <TouchableOpacity style={[styles.qrBtn, { backgroundColor: colors.primary }]} onPress={openQRScanner}>
-          <Text style={styles.qrBtnText}>📷  Scan QR Code</Text>
+          <AppIcon name="qr-code-outline" size={18} color="#fff" />
+          <Text style={styles.qrBtnText}>Scan QR Code</Text>
         </TouchableOpacity>
 
         <View style={styles.orDivider}>
@@ -546,9 +566,12 @@ export default function TicketsScreen() {
 
         {scanResult && (
           <View style={[styles.resultCard, { borderColor: scanResult.success ? '#16a34a' : '#dc2626' }]}>
-            <Text style={[styles.resultIcon, { color: scanResult.success ? '#16a34a' : '#dc2626' }]}>
-              {scanResult.success ? '✓' : '✕'}
-            </Text>
+            <AppIcon
+              name={scanResult.success ? 'checkmark-circle' : 'close-circle'}
+              size={40}
+              color={scanResult.success ? '#16a34a' : '#dc2626'}
+              style={styles.resultIcon}
+            />
             <Text style={[styles.resultText, { color: scanResult.success ? '#16a34a' : '#dc2626' }]}>
               {scanResult.success ? 'Access Granted!' : scanResult.message || 'Invalid Ticket'}
             </Text>
@@ -652,7 +675,7 @@ export default function TicketsScreen() {
                     ]}>
                       {cat}{usedElsewhere ? '  (added)' : ''}
                     </Text>
-                    {current === cat && <Text style={[styles.dropdownCheck, { color: colors.primary }]}>✓</Text>}
+                    {current === cat && <AppIcon name="checkmark" size={16} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               })}
@@ -673,7 +696,7 @@ export default function TicketsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Ticket Categories</Text>
               <TouchableOpacity onPress={() => setTicketModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <AppIcon name="close" size={22} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
@@ -767,7 +790,7 @@ const styles = StyleSheet.create({
   dropdownOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   dropdownOptionText: { fontSize: 15, color: '#111827' },
   dropdownCheck: { fontSize: 16, fontWeight: '700' },
-  mediaPickerBtn: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 6, marginBottom: 8, borderStyle: 'dashed' },
+  mediaPickerBtn: { flexDirection: 'row', gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 8, borderStyle: 'dashed' },
   mediaPickerBtnText: { fontSize: 14, fontWeight: '600' },
   thumbnailRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   thumbnail: { width: 60, height: 60, borderRadius: 8, backgroundColor: '#e5e7eb' },
@@ -780,7 +803,8 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: 'row', gap: 10 },
   editBtn: { fontSize: 16 },
   deleteBtn: { fontSize: 16 },
-  cardDetail: { fontSize: 13, color: '#6b7280', marginBottom: 2 },
+  cardDetail: { fontSize: 13, color: '#6b7280' },
+  cardDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   categoriesSection: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   categoriesTitle: { fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 6 },
   categoryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
@@ -793,13 +817,13 @@ const styles = StyleSheet.create({
   scanHeaderRow: { marginBottom: 16 },
   scanTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
   scanLabel: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 10 },
-  qrBtn: { borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
+  qrBtn: { flexDirection: 'row', gap: 8, borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   qrBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   orDivider: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   orLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
   orText: { paddingHorizontal: 12, fontSize: 12, color: '#9ca3af' },
   resultCard: { marginTop: 16, padding: 16, borderRadius: 12, borderWidth: 2, alignItems: 'center' },
-  resultIcon: { fontSize: 40, marginBottom: 8 },
+  resultIcon: { marginBottom: 8 },
   resultText: { fontSize: 16, fontWeight: '600' },
   resultDetails: { marginTop: 10, width: '100%' },
   resultDetail: { fontSize: 13, color: '#374151', marginBottom: 4 },

@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import { initNotifications, presentLocalNotification } from '../utils/notifications';
 import ProfileModal from './ProfileModal';
+import AppIcon from './AppIcon';
 
 const NOTIF_POLL_MS = 30000;
 
@@ -77,7 +78,7 @@ export default function TopNavbar() {
         </TouchableOpacity>
 
         <View style={styles.searchBox}>
-          <Text style={{ fontSize: 14, marginRight: 6 }}>🔍</Text>
+          <AppIcon name="search" size={16} color="#9ca3af" style={{ marginRight: 6 }} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
@@ -89,7 +90,7 @@ export default function TopNavbar() {
           style={styles.notifBtn}
           onPress={() => navigation.navigate('MoreTab', { screen: 'Notifications' })}
         >
-          <Text style={styles.notifIcon}>🔔</Text>
+          <AppIcon name="notifications-outline" size={22} color={colors.primary} />
           {unreadCount > 0 && (
             <View style={styles.notifBadge}>
               <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>

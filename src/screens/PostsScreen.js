@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshControl, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TopNavbar from '../components/TopNavbar';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
@@ -129,7 +130,7 @@ export default function PostsScreen() {
           </Text>
         </View>
         <TouchableOpacity onPress={() => handleDelete(item.id)}>
-          <Text style={styles.moreIcon}>•••</Text>
+          <AppIcon name="ellipsis-horizontal" size={18} color="#6b7280" />
         </TouchableOpacity>
       </View>
 
@@ -171,8 +172,14 @@ export default function PostsScreen() {
 
       {/* Post footer */}
       <View style={styles.postFooter}>
-        <Text style={styles.reactions}>{'\u2764'} {item.reactionsCount || 0}</Text>
-        <Text style={styles.reactions}>{'\u{1F4AC}'} {item.comments?.length || 0} comments</Text>
+        <View style={styles.reactionItem}>
+          <AppIcon name="heart" size={16} color="#dc2626" />
+          <Text style={styles.reactions}>{item.reactionsCount || 0}</Text>
+        </View>
+        <View style={styles.reactionItem}>
+          <AppIcon name="chatbubble-outline" size={16} color="#6b7280" />
+          <Text style={styles.reactions}>{item.comments?.length || 0} comments</Text>
+        </View>
       </View>
 
       {/* Post type badge */}
@@ -207,10 +214,12 @@ export default function PostsScreen() {
         </View>
         <View style={styles.createActions}>
           <TouchableOpacity onPress={pickImage} style={styles.mediaBtn}>
-            <Text style={styles.mediaBtnText}>📷 Photo</Text>
+            <AppIcon name="image-outline" size={15} color="#374151" />
+            <Text style={styles.mediaBtnText}>Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={pickVideo} style={styles.mediaBtn}>
-            <Text style={styles.mediaBtnText}>🎥 Video</Text>
+            <AppIcon name="videocam-outline" size={15} color="#374151" />
+            <Text style={styles.mediaBtnText}>Video</Text>
           </TouchableOpacity>
           {images.length > 0 && <Text style={styles.imageCount}>{images.length} img</Text>}
           {videos.length > 0 && <Text style={styles.imageCount}>{videos.length} vid</Text>}
@@ -256,7 +265,7 @@ const styles = StyleSheet.create({
   miniAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 10, marginTop: 2 },
   createInput: { flex: 1, fontSize: 14, color: '#111827', minHeight: 50, textAlignVertical: 'top', padding: 0 },
   createActions: { flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  mediaBtn: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#f3f4f6', borderRadius: 6, marginRight: 6 },
+  mediaBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#f3f4f6', borderRadius: 6, marginRight: 6 },
   mediaBtnText: { fontSize: 12, color: '#374151' },
   imageCount: { fontSize: 11, color: '#6b7280', marginRight: 6 },
   postBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16 },
@@ -286,6 +295,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f3f4f6',
     gap: 16,
   },
+  reactionItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   reactions: { fontSize: 12, color: '#6b7280' },
   typeBadge: { position: 'absolute', top: 12, right: 50, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   typeBadgeText: { fontSize: 10, fontWeight: '600' },

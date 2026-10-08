@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
+import AppIcon from './AppIcon';
 
 export default function ProfileModal({ visible, onClose }) {
   const { user, logout } = useContext(AuthContext);
@@ -105,7 +106,7 @@ export default function ProfileModal({ visible, onClose }) {
           </View>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => handleNav('MoreTab', { screen: 'AppSettings' })}>
-            <Text style={styles.menuIcon}>⚙️</Text>
+            <AppIcon name="settings-outline" size={20} color={colors.primary} style={styles.menuIcon} />
             <Text style={styles.menuLabel}>Settings</Text>
           </TouchableOpacity>
 
@@ -113,7 +114,7 @@ export default function ProfileModal({ visible, onClose }) {
 
           {/* Logout */}
           <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-            <Text style={styles.menuIcon}>🚪</Text>
+            <AppIcon name="log-out-outline" size={20} color="#dc2626" style={styles.menuIcon} />
             <Text style={[styles.menuLabel, { color: '#dc2626' }]}>Logout</Text>
           </TouchableOpacity>
         </Pressable>

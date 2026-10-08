@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import AppIcon from './AppIcon';
 
 /**
  * A dependency-free date picker rendered as a calendar in a modal.
@@ -86,7 +87,7 @@ export default function DatePickerField({ value, onChange, minDate, placeholder 
     <>
       <TouchableOpacity style={styles.trigger} activeOpacity={0.7} onPress={openPicker}>
         <Text style={[styles.triggerText, !selected && styles.placeholder]}>{display}</Text>
-        <Text style={styles.calendarIcon}>📅</Text>
+        <AppIcon name="calendar-outline" size={18} color={colors.primary} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>

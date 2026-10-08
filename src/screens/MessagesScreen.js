@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, RefreshC
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
+import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -220,7 +221,7 @@ export default function MessagesScreen() {
       <View style={styles.screen}>
         <View style={styles.chatHeader}>
           <TouchableOpacity style={[styles.chatBackBtn, { backgroundColor: colors.primary }]} onPress={() => setSelectedConversation(null)}>
-            <Text style={styles.chatBackIcon}>{'‹'}</Text>
+            <AppIcon name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={styles.chatHeaderInfo}>
             <Text style={styles.chatTitle} numberOfLines={1}>{selectedConversation.customerName}</Text>
@@ -264,7 +265,7 @@ export default function MessagesScreen() {
             onPress={handleSend}
             disabled={sending}
           >
-            <Text style={styles.sendBtnText}>➤</Text>
+            <AppIcon name="send" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -275,13 +276,13 @@ export default function MessagesScreen() {
     <View style={styles.screen}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>{'‹'}</Text>
+          <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Messages</Text>
         </View>
         <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary, position: 'relative', bottom: 0, right: 0, width: 36, height: 36, borderRadius: 18 }]} onPress={() => setShowNewMsgModal(true)}>
-          <Text style={[styles.fabText, { fontSize: 20, marginTop: 0 }]}>+</Text>
+          <AppIcon name="add" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
       {loading ? (
@@ -335,7 +336,7 @@ export default function MessagesScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Find a Customer</Text>
               <TouchableOpacity onPress={() => { setShowNewMsgModal(false); setFoundCustomer(null); setCustomerSearch(''); }}>
-                <Text style={styles.modalClose}>✕</Text>
+                <AppIcon name="close" size={22} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
@@ -357,7 +358,7 @@ export default function MessagesScreen() {
                 onPress={handleSearchCustomer}
                 disabled={searchingCustomer}
               >
-                <Text style={styles.searchBtnText}>{searchingCustomer ? '...' : '🔍'}</Text>
+                {searchingCustomer ? <Text style={styles.searchBtnText}>...</Text> : <AppIcon name="search" size={18} color="#fff" />}
               </TouchableOpacity>
             </View>
 
@@ -392,7 +393,7 @@ export default function MessagesScreen() {
 
             {!foundCustomer && !searchingCustomer && (
               <View style={styles.searchEmptyState}>
-                <Text style={styles.searchEmptyIcon}>🔎</Text>
+                <AppIcon name="search-outline" size={36} color="#d1d5db" style={styles.searchEmptyIcon} />
                 <Text style={styles.searchEmptyText}>Search for a customer by email or phone to start a conversation.</Text>
               </View>
             )}
