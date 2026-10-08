@@ -8,6 +8,7 @@ import { useAlert } from '../context/AlertContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const ROOM_TYPES = ['SINGLE', 'DOUBLE', 'SUITE', 'TRIPLE', 'DELUXE'];
@@ -225,9 +226,9 @@ export default function ServicesScreen() {
           businessUserId: user.id,
         };
         if (editingItem) {
-          await businessService.updateSlot(editingItem.id, data);
+          await businessService.updateSlot(editingItem.id, data, serviceImages, serviceVideos);
         } else {
-          await businessService.createSlot(data);
+          await businessService.createSlot(data, serviceImages, serviceVideos);
         }
       }
       resetForm();
@@ -266,7 +267,7 @@ export default function ServicesScreen() {
             <Text style={[styles.dropdownTriggerText, !roomType && styles.dropdownPlaceholder]}>
               {roomType || 'Select room type'}
             </Text>
-            <Text style={styles.dropdownCaret}>▾</Text>
+            <AppIcon name="chevron-down" size={16} color="#6b7280" />
           </TouchableOpacity>
           <Modal
             visible={roomTypeDropdownOpen}
@@ -290,7 +291,7 @@ export default function ServicesScreen() {
                     <Text style={[styles.dropdownOptionText, roomType === type && { color: colors.primary, fontWeight: '700' }]}>
                       {type}
                     </Text>
-                    {roomType === type && <Text style={[styles.dropdownCheck, { color: colors.primary }]}>✓</Text>}
+                    {roomType === type && <AppIcon name="checkmark" size={16} color={colors.primary} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -425,7 +426,7 @@ export default function ServicesScreen() {
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
               <View style={[styles.cardIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={{ fontSize: 16 }}>🛏️</Text>
+                <AppIcon name="bed-outline" size={18} color={colors.primary} />
               </View>
               <Text style={[styles.cardTitle, { flex: 1 }]}>{item.roomType || 'Room'}</Text>
               <View style={styles.cardActions}>
@@ -462,7 +463,7 @@ export default function ServicesScreen() {
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleRow}>
               <View style={[styles.cardIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={{ fontSize: 16 }}>🍽️</Text>
+                <AppIcon name="restaurant-outline" size={18} color={colors.primary} />
               </View>
               <Text style={[styles.cardTitle, { flex: 1 }]}>Table · {item.capacity || 0} seats</Text>
               <View style={styles.cardActions}>
@@ -574,7 +575,7 @@ export default function ServicesScreen() {
           style={[styles.addBtn, { backgroundColor: colors.primary }]}
           onPress={() => { resetForm(); setShowForm(!showForm); }}
         >
-          <Text style={styles.addBtnText}>{showForm ? '✕' : '+'}</Text>
+          <AppIcon name={showForm ? 'close' : 'add'} size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -583,31 +584,25 @@ export default function ServicesScreen() {
           <Text style={styles.formTitle}>{editingItem ? 'Edit' : 'Add'} {serviceLabel.slice(0, -1)}</Text>
           {renderForm()}
 
-          {/* Media upload is only supported for rooms/tables (multipart).
-              Business slots use a JSON body with pre-hosted imageUrls, so the
-              file picker is hidden there to avoid picks that never save. */}
-          {getServiceType() !== 'slots' && (
-            <>
-              {/* Add Images button */}
-              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImages}>
-                <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>📷 Add Images</Text>
-              </TouchableOpacity>
-              {serviceImages.length > 0 && (
-                <View style={styles.thumbnailRow}>
-                  {serviceImages.map((img, idx) => (
-                    <Image key={idx} source={{ uri: img.uri }} style={styles.thumbnail} />
-                  ))}
-                </View>
-              )}
+          {/* Media upload (multipart) for all service types, including slots. */}
+          <TouchableOpacity style={styles.imagePickerBtn} onPress={pickImages}>
+            <AppIcon name="image-outline" size={16} color={colors.primary} />
+            <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>Add Images</Text>
+          </TouchableOpacity>
+          {serviceImages.length > 0 && (
+            <View style={styles.thumbnailRow}>
+              {serviceImages.map((img, idx) => (
+                <Image key={idx} source={{ uri: img.uri }} style={styles.thumbnail} />
+              ))}
+            </View>
+          )}
 
-              {/* Add Video button */}
-              <TouchableOpacity style={styles.imagePickerBtn} onPress={pickVideos}>
-                <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>🎥 Add Video</Text>
-              </TouchableOpacity>
-              {serviceVideos.length > 0 && (
-                <Text style={styles.videoCount}>{serviceVideos.length} video(s) selected</Text>
-              )}
-            </>
+          <TouchableOpacity style={styles.imagePickerBtn} onPress={pickVideos}>
+            <AppIcon name="videocam-outline" size={16} color={colors.primary} />
+            <Text style={[styles.imagePickerBtnText, { color: colors.primary }]}>Add Video</Text>
+          </TouchableOpacity>
+          {serviceVideos.length > 0 && (
+            <Text style={styles.videoCount}>{serviceVideos.length} video(s) selected</Text>
           )}
 
           <TouchableOpacity
@@ -672,7 +667,7 @@ const styles = StyleSheet.create({
   toggleLabel: { fontSize: 14, color: '#374151' },
   toggle: { backgroundColor: '#e5e7eb', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
   toggleText: { fontSize: 12, color: '#fff', fontWeight: '600' },
-  imagePickerBtn: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 6, marginBottom: 8, borderStyle: 'dashed' },
+  imagePickerBtn: { flexDirection: 'row', gap: 6, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingVertical: 10, alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 8, borderStyle: 'dashed' },
   imagePickerBtnText: { fontSize: 14, fontWeight: '600' },
   videoCount: { fontSize: 12, color: '#6b7280', textAlign: 'center', marginBottom: 8 },
   submitBtn: { marginTop: 12, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },

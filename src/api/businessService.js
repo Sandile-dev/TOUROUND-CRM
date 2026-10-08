@@ -183,15 +183,15 @@ const businessService = {
     try { const r = await apiClient.get(`/business-slots/business/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
-  // Business slots use a JSON body (not multipart). Images are sent as an
-  // `imageUrls` array of already-hosted URL strings, per the API contract.
-  createSlot: async (slotData) => {
-    try { const r = await apiClient.post('/business-slots/new', slotData); return r.data; }
+  // Business slots are multipart: a `slot` JSON part plus `images` files and a
+  // single `video` file, matching BusinessSlotController.
+  createSlot: async (slotData, images = [], videos = []) => {
+    try { return await sendMultipart('POST', '/business-slots/new', 'slot', slotData, { images, video: videos }); }
     catch (error) { throw handleApiError(error); }
   },
 
-  updateSlot: async (slotId, slotData) => {
-    try { const r = await apiClient.put(`/business-slots/update/${slotId}`, slotData); return r.data; }
+  updateSlot: async (slotId, slotData, images = [], videos = []) => {
+    try { return await sendMultipart('PUT', `/business-slots/update/${slotId}`, 'slot', slotData, { images, video: videos }); }
     catch (error) { throw handleApiError(error); }
   },
 
