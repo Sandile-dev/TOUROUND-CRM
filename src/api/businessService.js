@@ -325,6 +325,10 @@ const businessService = {
     try { const r = await apiClient.get(`/notifications/business/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
+  getUnreadNotifications: async (businessUserId) => {
+    try { const r = await apiClient.get(`/notifications/business/${businessUserId}/unread`); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
   markNotificationRead: async (notificationId) => {
     try { const r = await apiClient.put(`/notifications/${notificationId}/read`); return r.data; } catch (error) { throw handleApiError(error); }
   },
