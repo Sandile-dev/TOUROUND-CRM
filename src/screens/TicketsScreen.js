@@ -59,6 +59,8 @@ export default function TicketsScreen() {
   const [ticketModalVisible, setTicketModalVisible] = useState(false);
   const [ticketModalEventId, setTicketModalEventId] = useState(null);
   const [ticketCategories, setTicketCategories] = useState([{ name: '', price: '', totalTickets: '' }]);
+  // Which ticket-category row's dropdown is open (index), or null.
+  const [openTicketCategoryRow, setOpenTicketCategoryRow] = useState(null);
   const [savingCategories, setSavingCategories] = useState(false);
 
   // Scanner fields
@@ -254,6 +256,7 @@ export default function TicketsScreen() {
   const openTicketModal = (eventId) => {
     setTicketModalEventId(eventId);
     setTicketCategories([{ name: '', price: '', totalTickets: '' }]);
+    setOpenTicketCategoryRow(null);
     setTicketModalVisible(true);
   };
 
@@ -711,13 +714,16 @@ export default function TicketsScreen() {
                       </TouchableOpacity>
                     )}
                   </View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Category Name (e.g. VIP, General)"
-                    placeholderTextColor="#9ca3af"
-                    value={cat.name}
-                    onChangeText={(val) => updateCategoryRow(index, 'name', val)}
-                  />
+                  <TouchableOpacity
+                    style={styles.dropdownTrigger}
+                    activeOpacity={0.7}
+                    onPress={() => setOpenTicketCategoryRow(index)}
+                  >
+                    <Text style={[styles.dropdownTriggerText, !cat.name && styles.dropdownPlaceholder]}>
+                      {cat.name || 'Select category'}
+                    </Text>
+                    <AppIcon name="chevron-down" size={16} color="#6b7280" />
+                  </TouchableOpacity>
                   <TextInput
                     style={styles.input}
                     placeholder="Price"
@@ -751,6 +757,51 @@ export default function TicketsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Ticket-category dropdown Modal (for the Add Ticket Categories modal) */}
+      <Modal
+        visible={openTicketCategoryRow !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenTicketCategoryRow(null)}
+      >
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          activeOpacity={1}
+          onPress={() => setOpenTicketCategoryRow(null)}
+        >
+          <View style={styles.dropdownMenu}>
+            <Text style={styles.dropdownMenuTitle}>Select Category</Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {EVENT_CATEGORIES.map((cat) => {
+                const current = openTicketCategoryRow !== null ? ticketCategories[openTicketCategoryRow]?.name : null;
+                // Disable categories already chosen in other rows.
+                const usedElsewhere = ticketCategories.some((c, i) => i !== openTicketCategoryRow && c.name === cat);
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={styles.dropdownOption}
+                    disabled={usedElsewhere}
+                    onPress={() => {
+                      if (openTicketCategoryRow !== null) updateCategoryRow(openTicketCategoryRow, 'name', cat);
+                      setOpenTicketCategoryRow(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownOptionText,
+                      current === cat && { color: colors.primary, fontWeight: '700' },
+                      usedElsewhere && { color: '#d1d5db' },
+                    ]}>
+                      {cat}{usedElsewhere ? '  (added)' : ''}
+                    </Text>
+                    {current === cat && <AppIcon name="checkmark" size={16} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );

@@ -329,6 +329,10 @@ const businessService = {
     try { const r = await apiClient.put(`/notifications/${notificationId}/read`); return r.data; } catch (error) { throw handleApiError(error); }
   },
 
+  deleteNotification: async (notificationId) => {
+    try { const r = await apiClient.delete(`/notifications/${notificationId}`); return r.data; } catch (error) { throw handleApiError(error); }
+  },
+
   // Events & Tickets
   getTickets: async (businessUserId) => {
     try { const r = await apiClient.get(`/events/business/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
