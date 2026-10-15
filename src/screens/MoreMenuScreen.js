@@ -3,31 +3,34 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AppIcon from '../components/AppIcon';
+import { hasPermission, FEATURES } from '../constants/permissions';
 
+// `feature` gates visibility for staff. `ownerOnly` items are hidden from all
+// staff regardless of permissions (business owner only).
 const menuSections = [
   {
     title: 'Business',
     items: [
-      { screen: 'Services', icon: 'briefcase-outline', label: 'Services' },
-      { screen: 'Tickets', icon: 'ticket-outline', label: 'Events & Tickets' },
-      { screen: 'Customers', icon: 'people-outline', label: 'Customers' },
-      { screen: 'Sales', icon: 'cash-outline', label: 'Sales Report' },
-      { screen: 'Payments', icon: 'card-outline', label: 'Payments' },
-      { screen: 'Promotions', icon: 'pricetag-outline', label: 'Promotions' },
-      { screen: 'Staff', icon: 'person-outline', label: 'Staff' },
+      { screen: 'Services', icon: 'briefcase-outline', label: 'Services', feature: FEATURES.SERVICES },
+      { screen: 'Tickets', icon: 'ticket-outline', label: 'Events & Tickets', feature: FEATURES.TICKETS },
+      { screen: 'Customers', icon: 'people-outline', label: 'Customers', feature: FEATURES.CUSTOMERS },
+      { screen: 'Sales', icon: 'cash-outline', label: 'Sales Report', feature: FEATURES.SALES },
+      { screen: 'Payments', icon: 'card-outline', label: 'Payments', feature: FEATURES.PAYMENTS },
+      { screen: 'Promotions', icon: 'pricetag-outline', label: 'Promotions', feature: FEATURES.PROMOTIONS },
+      { screen: 'Staff', icon: 'person-outline', label: 'Staff', ownerOnly: true },
     ],
   },
   {
     title: 'Insights',
     items: [
-      { screen: 'Reviews', icon: 'star-outline', label: 'Reviews' },
-      { screen: 'Analytics', icon: 'bar-chart-outline', label: 'Analytics' },
+      { screen: 'Reviews', icon: 'star-outline', label: 'Reviews', feature: FEATURES.REVIEWS },
+      { screen: 'Analytics', icon: 'bar-chart-outline', label: 'Analytics', feature: FEATURES.ANALYTICS },
     ],
   },
   {
     title: 'Account',
     items: [
-      { screen: 'Settings', icon: 'person-circle-outline', label: 'Profile Settings' },
+      { screen: 'Settings', icon: 'person-circle-outline', label: 'Profile Settings', ownerOnly: true },
       { screen: 'AppSettings', icon: 'settings-outline', label: 'App Settings' },
     ],
   },
@@ -37,9 +40,21 @@ export default function MoreMenuScreen({ navigation }) {
   const { user, logout } = useContext(AuthContext);
   const { colors } = useTheme();
 
+  // Filter items by role/permissions, then drop any now-empty section.
+  const visibleSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.ownerOnly) return !user?.isStaff;
+        if (item.feature) return hasPermission(user, item.feature);
+        return true; // ungated items (e.g. App Settings) are always available
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
+
   return (
     <ScrollView style={styles.screen}>
-      {menuSections.map((section) => (
+      {visibleSections.map((section) => (
         <View key={section.title} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
           {section.items.map((item) => (

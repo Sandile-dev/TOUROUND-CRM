@@ -6,6 +6,7 @@ import AppIcon from '../components/AppIcon';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import staffService from '../api/staffService';
+import { ROLE_PERMISSIONS, permissionsForRole } from '../constants/permissions';
 
 const STAFF_ROLES = [
   { value: 'MANAGER', label: 'Manager', description: 'Full access to all features except staff management and business settings' },
@@ -14,15 +15,6 @@ const STAFF_ROLES = [
   { value: 'MARKETING', label: 'Marketing', description: 'Posts, promotions, and reviews' },
   { value: 'EVENTS', label: 'Events Coordinator', description: 'Event tickets, reservations, and customers' },
 ];
-
-const ROLE_PERMISSIONS = {
-  OWNER: ['*'],
-  MANAGER: ['Dashboard', 'Posts', 'Services', 'Reservations', 'Tickets', 'Customers', 'Payments', 'Promotions', 'Sales', 'Reviews', 'Analytics', 'Notifications', 'Messages'],
-  RECEPTIONIST: ['Dashboard', 'Reservations', 'Tickets', 'Customers', 'Messages', 'Notifications'],
-  FINANCE: ['Dashboard', 'Payments', 'Sales', 'Analytics', 'Notifications'],
-  MARKETING: ['Dashboard', 'Posts', 'Promotions', 'Reviews', 'Analytics', 'Notifications'],
-  EVENTS: ['Dashboard', 'Tickets', 'Reservations', 'Customers', 'Notifications'],
-};
 
 const getRoleBadgeColor = (role) => {
   switch (role) {
@@ -39,7 +31,8 @@ export default function StaffScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const isOwner = !user?.staffRole || user?.staffRole === 'OWNER';
+  // Only the business owner (not a staff account) can manage staff.
+  const isOwner = !user?.isStaff;
 
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +81,8 @@ export default function StaffScreen() {
       phoneNumber: f.phoneNumber.trim(),
       position: label,
       roles: ['STAFF'],
+      // Fine-grained feature access for this staff member, derived from role.
+      permissions: permissionsForRole(f.role),
       // Keep legacy/internal fields for the UI and permission mapping.
       name: f.name.trim(),
       surname: f.surname.trim(),

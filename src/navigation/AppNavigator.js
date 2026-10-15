@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { hasPermission, FEATURES } from '../constants/permissions';
 
 // Auth Screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -87,6 +88,7 @@ function MoreStack() {
 
 function MainTabs() {
   const { colors } = useTheme();
+  const { user } = useContext(AuthContext);
   const insets = useSafeAreaInsets();
 
   // Base bar (content) height plus the device's bottom inset so the tab bar
@@ -112,26 +114,33 @@ function MainTabs() {
         },
       }}
     >
+      {/* Dashboard is always available (every role includes it). */}
       <Tab.Screen
         name="Home"
         component={DashboardScreen}
         options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Home" focused={focused} color={color} /> }}
       />
-      <Tab.Screen
-        name="Reservations"
-        component={ReservationsScreen}
-        options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Bookings" focused={focused} color={color} /> }}
-      />
-      <Tab.Screen
-        name="Posts"
-        component={PostsScreen}
-        options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Posts" focused={focused} color={color} /> }}
-      />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Chat" focused={focused} color={color} /> }}
-      />
+      {hasPermission(user, FEATURES.RESERVATIONS) && (
+        <Tab.Screen
+          name="Reservations"
+          component={ReservationsScreen}
+          options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Bookings" focused={focused} color={color} /> }}
+        />
+      )}
+      {hasPermission(user, FEATURES.POSTS) && (
+        <Tab.Screen
+          name="Posts"
+          component={PostsScreen}
+          options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Posts" focused={focused} color={color} /> }}
+        />
+      )}
+      {hasPermission(user, FEATURES.MESSAGES) && (
+        <Tab.Screen
+          name="Messages"
+          component={MessagesScreen}
+          options={{ tabBarIcon: ({ focused, color }) => <TabIcon label="Chat" focused={focused} color={color} /> }}
+        />
+      )}
       <Tab.Screen
         name="MoreTab"
         component={MoreStack}

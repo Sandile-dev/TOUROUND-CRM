@@ -48,43 +48,131 @@ async function findBusinessByEmail(email) {
   }
 }
 
+// Find a business user by its id (the owner a staff member belongs to).
+async function findBusinessById(userId) {
+  try {
+    const pageSize = 100;
+    let pageNo = 0;
+    for (let i = 0; i < 50; i++) {
+      const response = await apiClient.get('/attractions/all', { params: { pageNo, pageSize } });
+      const data = response.data;
+      const attractions = Array.isArray(data) ? data : data?.content || [];
+      for (const attraction of attractions) {
+        const users = attraction.users || [];
+        const found = users.find((u) => String(u.id) === String(userId));
+        if (found) {
+          return { ...found, attraction: { id: attraction.id, name: attraction.name } };
+        }
+      }
+      const isLast = Array.isArray(data) || data?.last === true || attractions.length === 0;
+      if (isLast) break;
+      pageNo += 1;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function persistTokens(data) {
+  const token = typeof data === 'string' ? data.trim() : (data.accessToken || data.token || '').trim();
+  const refresh = typeof data === 'object' ? (data.refreshToken || data.refresh_token || '').trim() : '';
+  return { token, refresh };
+}
+
+// Staff login flow: authenticates with loginType STAFF, then resolves the staff
+// record (for name + owning business) and the business context so staff operate
+// on behalf of their business. Permissions come from the login response.
+async function staffLogin(email, password) {
+  let resp;
+  try {
+    resp = await apiClient.post('/auth/login', { emailOrCellphone: email, password, loginType: 'STAFF' });
+  } catch (error) {
+    throw handleApiError(error);
+  }
+  const data = resp.data;
+  const { token, refresh } = persistTokens(data);
+  if (token) await storage.setItem('crm_token', token);
+  if (refresh) await storage.setItem('crm_refresh_token', refresh);
+
+  const permissions = Array.isArray(data?.permissions) ? data.permissions : [];
+  const staffRole = data?.staffRole || data?.role || 'STAFF';
+
+  // Find this staff's record to get their name and owning business (userId).
+  let staffRecord = null;
+  try {
+    const r = await apiClient.get('/business/staff');
+    const list = Array.isArray(r.data) ? r.data : r.data?.content || [];
+    staffRecord = list.find((s) => (s.email || '').toLowerCase() === email.toLowerCase()) || null;
+  } catch {}
+
+  // Resolve the business the staff belongs to (for attraction + business id).
+  // Note: the backend may report the staff's owning-business id as 0/absent; in
+  // that case we leave business context null rather than fetch the wrong business.
+  let business = null;
+  const ownerId = staffRecord && (staffRecord.userId || staffRecord.businessUserId);
+  if (ownerId != null && Number(ownerId) > 0) business = await findBusinessById(ownerId);
+
+  const displayName = staffRecord
+    ? [staffRecord.firstName, staffRecord.lastName].filter(Boolean).join(' ').trim()
+    : '';
+
+  return {
+    // Business context the app's data screens rely on (null if unresolved).
+    id: business ? business.id : null,
+    name: (business && business.name) || displayName || 'Staff',
+    attraction: business ? business.attraction : null,
+    // Staff identity + access control.
+    isStaff: true,
+    staffId: staffRecord ? staffRecord.id : null,
+    staffName: displayName,
+    staffEmail: email,
+    role: 'STAFF',
+    staffRole,
+    position: staffRecord ? staffRecord.position : null,
+    permissions,
+  };
+}
+
 const authService = {
   login: async (email, password) => {
+    await storage.deleteItem('crm_token');
+    await storage.deleteItem('crm_refresh_token');
+
+    // 1) Try a business-owner login.
+    let bizResp;
     try {
-      await storage.deleteItem('crm_token');
-      const response = await apiClient.post('/auth/login', {
-        emailOrCellphone: email,
-        password: password,
-        loginType: 'BUSINESS',
+      bizResp = await apiClient.post('/auth/login', {
+        emailOrCellphone: email, password, loginType: 'BUSINESS',
       });
-      const data = response.data;
-      const token =
-        typeof data === 'string'
-          ? data.trim()
-          : (data.accessToken || data.token || '').trim();
-      if (token) await storage.setItem('crm_token', token);
-
-      // Store the refresh token if the backend provides one.
-      const refresh = typeof data === 'object'
-        ? (data.refreshToken || data.refresh_token || '').trim()
-        : '';
-      if (refresh) await storage.setItem('crm_refresh_token', refresh);
-
-      const payload = decodeJwtPayload(token);
-      const userEmail = payload?.sub || email;
-      const user = await findBusinessByEmail(userEmail);
-
-      // Client-side guard: reject if user has no business association
-      if (!user) {
-        await storage.deleteItem('crm_token');
-        await storage.deleteItem('crm_refresh_token');
-        throw new Error('This account is not associated with a business. Please use the customer app instead.');
-      }
-
-      return user;
     } catch (error) {
-      throw handleApiError(error);
+      // If the backend says this isn't a business user, fall through to STAFF.
+      const msg = (error?.response?.data?.message || error?.response?.data || error?.message || '').toString().toLowerCase();
+      const notBusiness = error?.response?.status === 400 && msg.includes('not registered as a business');
+      if (!notBusiness) throw handleApiError(error);
+      return await staffLogin(email, password);
     }
+
+    // Business-owner success path.
+    const data = bizResp.data;
+    const { token, refresh } = persistTokens(data);
+    if (token) await storage.setItem('crm_token', token);
+    if (refresh) await storage.setItem('crm_refresh_token', refresh);
+
+    const payload = decodeJwtPayload(token);
+    const userEmail = payload?.sub || email;
+    const business = await findBusinessByEmail(userEmail);
+    if (!business) {
+      await storage.deleteItem('crm_token');
+      await storage.deleteItem('crm_refresh_token');
+      throw new Error('This account is not associated with a business. Please use the customer app instead.');
+    }
+    return {
+      ...business,
+      role: 'OWNER',
+      // Owners have unrestricted access.
+      permissions: ['*'],
+    };
   },
 
   register: async (businessData) => {
