@@ -109,6 +109,12 @@ const businessService = {
     catch (error) { throw handleApiError(error); }
   },
 
+  // Admin/maintenance: reactivate all business users. Not surfaced in the UI.
+  activateAllBusinessUsers: async () => {
+    try { const r = await apiClient.post('/business/activate-all'); return r.data; }
+    catch (error) { throw handleApiError(error); }
+  },
+
   updateProfile: async (profileData) => {
     try { return await sendMultipart('PUT', '/business/profile', 'profile', profileData); }
     catch (error) { throw handleApiError(error); }
