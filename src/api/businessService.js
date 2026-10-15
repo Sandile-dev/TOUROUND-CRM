@@ -78,12 +78,35 @@ const businessService = {
     }
   },
 
+  // Current business profile (resolved from the auth token, no id needed).
+  getCurrentProfile: async () => {
+    try {
+      const response = await apiClient.get('/business/profile');
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Soft deactivate/reactivate the current business (PATCH toggle-status).
+  toggleProfileStatus: async () => {
+    try { const r = await apiClient.patch('/business/profile/toggle-status'); return r.data; }
+    catch (error) { throw handleApiError(error); }
+  },
+
+  // Kept for existing callers: deactivates the account via toggle-status.
   deleteAccount: async () => {
     try {
       await apiClient.patch('/business/profile/toggle-status');
     } catch (error) {
       throw handleApiError(error);
     }
+  },
+
+  // Permanently delete the current business profile.
+  deleteProfile: async () => {
+    try { const r = await apiClient.delete('/business/profile'); return r.data; }
+    catch (error) { throw handleApiError(error); }
   },
 
   updateProfile: async (profileData) => {

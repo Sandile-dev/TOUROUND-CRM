@@ -53,23 +53,49 @@ export default function StaffScreen() {
 
   useEffect(() => { if (user?.id) loadStaff(); else setLoading(false); }, [user]);
 
+  // Normalize a backend staff record to the fields this screen renders.
+  // The API uses firstName/lastName/position/roles; the UI uses name/surname/role.
+  const normalizeStaff = (s) => ({
+    ...s,
+    name: s.name || s.firstName || '',
+    surname: s.surname || s.lastName || '',
+    role: s.role || s.position || 'RECEPTIONIST',
+    status: s.status || (s.active === false ? 'SUSPENDED' : 'ACTIVE'),
+  });
+
   const loadStaff = async () => {
     setLoading(true);
     try {
-      const res = await staffService.getStaffMembers(user.id);
-      setStaff(Array.isArray(res) ? res : res?.content || []);
+      const res = await staffService.getStaffMembers();
+      const list = Array.isArray(res) ? res : res?.content || [];
+      setStaff(list.map(normalizeStaff));
     } catch {
-      setStaff(getMockStaff());
+      setStaff([]);
     } finally { setLoading(false); setRefreshing(false); }
   };
 
-  const getMockStaff = () => [
-    { id: 1, name: 'Thandi', surname: 'Nkosi', email: 'thandi@business.com', phoneNumber: '0821234567', role: 'MANAGER', status: 'ACTIVE', lastLogin: '2026-07-30T14:30:00' },
-    { id: 2, name: 'Sipho', surname: 'Dlamini', email: 'sipho@business.com', phoneNumber: '0839876543', role: 'RECEPTIONIST', status: 'ACTIVE', lastLogin: '2026-07-31T08:15:00' },
-    { id: 3, name: 'Lerato', surname: 'Molefe', email: 'lerato@business.com', phoneNumber: '0845551234', role: 'FINANCE', status: 'ACTIVE', lastLogin: '2026-07-29T16:45:00' },
-  ];
-
   const onRefresh = () => { setRefreshing(true); loadStaff(); };
+
+  // Build the API payload from the form. Sends the BusinessController staff
+  // contract fields (firstName/lastName/position/roles) and keeps name/surname/
+  // role so the record round-trips cleanly for the UI.
+  const toStaffPayload = (f, { includePassword = true } = {}) => {
+    const label = STAFF_ROLES.find((r) => r.value === f.role)?.label || f.role;
+    const payload = {
+      firstName: f.name.trim(),
+      lastName: f.surname.trim(),
+      email: f.email.trim(),
+      phoneNumber: f.phoneNumber.trim(),
+      position: label,
+      roles: ['STAFF'],
+      // Keep legacy/internal fields for the UI and permission mapping.
+      name: f.name.trim(),
+      surname: f.surname.trim(),
+      role: f.role,
+    };
+    if (includePassword && f.password) payload.password = f.password;
+    return payload;
+  };
 
   const handleCreate = async () => {
     if (!form.name || form.name.trim().length < 2) { Alert.alert('Error', 'Name must be at least 2 characters'); return; }
@@ -80,9 +106,10 @@ export default function StaffScreen() {
 
     setSubmitting(true);
     try {
-      const staffData = { ...form, businessUserId: user.id };
+      const staffData = toStaffPayload(form);
       const created = await staffService.addStaffMember(staffData);
-      setStaff(prev => [...prev, created || { ...staffData, id: Date.now(), status: 'ACTIVE' }]);
+      const row = normalizeStaff(created && typeof created === 'object' ? { ...staffData, ...created } : { ...staffData, id: Date.now(), status: 'ACTIVE' });
+      setStaff(prev => [...prev, row]);
       setForm(emptyForm); setShowForm(false);
       Alert.alert('Success', 'Staff member added! They can now login with their credentials.');
     } catch (err) { Alert.alert('Error', err.message || 'Failed to add staff member'); }
@@ -93,9 +120,9 @@ export default function StaffScreen() {
     if (!form.name || !form.surname || !form.email) { Alert.alert('Error', 'Please fill required fields'); return; }
     setSubmitting(true);
     try {
-      const data = { name: form.name, surname: form.surname, email: form.email, phoneNumber: form.phoneNumber, role: form.role };
+      const data = toStaffPayload(form, { includePassword: false });
       const updated = await staffService.updateStaffMember(editingId, data);
-      setStaff(prev => prev.map(s => s.id === editingId ? { ...s, ...updated, ...data } : s));
+      setStaff(prev => prev.map(s => s.id === editingId ? normalizeStaff({ ...s, ...data, ...(updated && typeof updated === 'object' ? updated : {}) }) : s));
       setEditingId(null); setForm(emptyForm);
     } catch (err) { Alert.alert('Error', err.message || 'Failed to update'); }
     finally { setSubmitting(false); }
@@ -113,8 +140,16 @@ export default function StaffScreen() {
 
   const handleToggleStatus = async (member) => {
     const newStatus = member.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    const label = STAFF_ROLES.find((r) => r.value === member.role)?.label || member.role;
     try {
-      await staffService.updateStaffMember(member.id, { ...member, status: newStatus });
+      // The staff update contract takes name/role fields; send a well-formed
+      // payload and include `status`/`active` best-effort for backends that honor it.
+      await staffService.updateStaffMember(member.id, {
+        firstName: member.name, lastName: member.surname,
+        position: label, roles: ['STAFF'],
+        name: member.name, surname: member.surname, role: member.role,
+        status: newStatus, active: newStatus === 'ACTIVE',
+      });
       setStaff(prev => prev.map(s => s.id === member.id ? { ...s, status: newStatus } : s));
     } catch (err) { Alert.alert('Error', err.message || 'Failed to update status'); }
   };
