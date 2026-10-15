@@ -404,9 +404,9 @@ const businessService = {
     } catch (error) { throw handleApiError(error); }
   },
 
-  // Followers
+  // Followers — people following this business.
   getFollowers: async (businessUserId) => {
-    try { const r = await apiClient.get(`/follow/following/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
+    try { const r = await apiClient.get(`/follow/followers/${businessUserId}`); return r.data; } catch (error) { throw handleApiError(error); }
   },
 };
 
