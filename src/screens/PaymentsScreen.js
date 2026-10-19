@@ -7,8 +7,15 @@ import paymentService from '../api/paymentService';
 import AppIcon from '../components/AppIcon';
 import { resolveCategory, usesRoomBookings } from '../constants/attractions';
 
-const COMMISSION_RATE = 0.15;
-const DELIVERY_FEE_RATE = 0.05;
+// Fee structure (mirrors backend PaymentServiceImpl):
+//   platform fee 8%  +  service fee 5%  =>  business keeps 87%.
+const PLATFORM_FEE_RATE = 0.08;
+const SERVICE_FEE_RATE = 0.05;
+// Back-compat aliases used throughout the earnings math below.
+const COMMISSION_RATE = PLATFORM_FEE_RATE;
+const DELIVERY_FEE_RATE = SERVICE_FEE_RATE;
+const TOTAL_FEE_RATE = PLATFORM_FEE_RATE + SERVICE_FEE_RATE;
+const NET_RATE_PERCENT = Math.round((1 - TOTAL_FEE_RATE) * 100); // 87
 const PAYOUT_THRESHOLD = 100;
 
 const ALL_TABS = [
@@ -295,7 +302,7 @@ export default function PaymentsScreen() {
               <Text style={styles.commissionLabel}>Commission Owed to Touround</Text>
             </View>
             <Text style={styles.commissionAmount}>R{commissionOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
-            <Text style={styles.commissionSub}>20% commission on cash payments</Text>
+            <Text style={styles.commissionSub}>{Math.round(TOTAL_FEE_RATE * 100)}% commission on cash payments</Text>
           </View>
         )}
 
@@ -312,7 +319,7 @@ export default function PaymentsScreen() {
           <View style={styles.breakdownRow}>
             <View style={styles.breakdownLabelRow}>
               <AppIcon name="business-outline" size={15} color="#374151" />
-              <Text style={styles.breakdownLabel}>Platform Fee (15%)</Text>
+              <Text style={styles.breakdownLabel}>Platform Fee (8%)</Text>
             </View>
             <Text style={[styles.breakdownValue, { color: '#dc2626' }]}>-R{earnings.platformFee?.toLocaleString()}</Text>
           </View>
@@ -344,7 +351,7 @@ export default function PaymentsScreen() {
             <Text style={styles.statLabel}>Total Paid Out</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: '#166534' }]}>80%</Text>
+            <Text style={[styles.statValue, { color: '#166534' }]}>{NET_RATE_PERCENT}%</Text>
             <Text style={styles.statLabel}>Effective Rate</Text>
           </View>
         </View>
@@ -564,11 +571,11 @@ export default function PaymentsScreen() {
       {/* Commission Structure Info */}
       <View style={[styles.card, { marginTop: 12 }]}>
         <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 8 }]}>Commission Structure</Text>
-        <View style={styles.breakdownRow}><Text style={styles.breakdownLabel}>Platform Fee</Text><Text style={[styles.breakdownValue, { color: '#ea580c' }]}>15%</Text></View>
+        <View style={styles.breakdownRow}><Text style={styles.breakdownLabel}>Platform Fee</Text><Text style={[styles.breakdownValue, { color: '#ea580c' }]}>8%</Text></View>
         <View style={styles.breakdownRow}><Text style={styles.breakdownLabel}>Service Fee</Text><Text style={[styles.breakdownValue, { color: '#7c3aed' }]}>5%</Text></View>
         <View style={[styles.breakdownRow, { backgroundColor: '#f0fdf4', borderRadius: 6, padding: 8, marginTop: 4 }]}>
           <Text style={[styles.breakdownLabel, { color: '#166534', fontWeight: '700' }]}>Your Earnings</Text>
-          <Text style={[styles.breakdownValue, { color: '#166534', fontWeight: '700' }]}>80%</Text>
+          <Text style={[styles.breakdownValue, { color: '#166534', fontWeight: '700' }]}>{NET_RATE_PERCENT}%</Text>
         </View>
       </View>
     </View>
@@ -627,7 +634,7 @@ export default function PaymentsScreen() {
               <Text style={styles.modalTitle}>Record a Payment</Text>
               <TouchableOpacity onPress={() => setShowCashModal(false)}><AppIcon name="close" size={22} color="#6b7280" /></TouchableOpacity>
             </View>
-            <Text style={styles.modalSubtitle}>Record a cash payment, or send the customer an Ozow online payment link. Cash payments add 20% commission to your owed balance.</Text>
+            <Text style={styles.modalSubtitle}>Record a cash payment, or send the customer an Ozow online payment link. Cash payments add {Math.round(TOTAL_FEE_RATE * 100)}% commission to your owed balance.</Text>
             <Text style={styles.fieldLabel}>Booking Reference</Text>
             <TextInput style={styles.input} value={cashForm.bookingReference} onChangeText={t => setCashForm({ ...cashForm, bookingReference: t })} placeholder="e.g. RES-78432" placeholderTextColor="#9ca3af" />
             <Text style={styles.fieldLabel}>Amount (R)</Text>
