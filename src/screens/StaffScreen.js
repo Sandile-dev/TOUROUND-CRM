@@ -38,6 +38,7 @@ export default function StaffScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -169,54 +170,104 @@ export default function StaffScreen() {
     );
   }
 
-  const renderCreateForm = () => {
-    if (!showForm) return null;
-    return (
-      <View style={styles.formCard}>
-        <View style={styles.formHeader}>
-          <Text style={styles.formTitle}>Add Staff Member</Text>
-          <TouchableOpacity onPress={() => { setShowForm(false); setForm(emptyForm); }}>
-            <AppIcon name="close" size={22} color="#6b7280" />
+  const closeAddForm = () => { setShowForm(false); setForm(emptyForm); };
+
+  // Add Staff Member — its own form (full-screen modal).
+  const renderAddStaffModal = () => (
+    <Modal visible={showForm} animationType="slide" onRequestClose={closeAddForm} presentationStyle="pageSheet">
+      <View style={styles.screen}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={closeAddForm}>
+            <AppIcon name="close" size={20} color="#fff" />
           </TouchableOpacity>
-        </View>
-        <Text style={styles.fieldLabel}>First Name</Text>
-        <TextInput style={styles.input} placeholder="e.g. Thandi" placeholderTextColor="#9ca3af" value={form.name} onChangeText={t => setForm({ ...form, name: t })} />
-        <Text style={styles.fieldLabel}>Surname</Text>
-        <TextInput style={styles.input} placeholder="e.g. Nkosi" placeholderTextColor="#9ca3af" value={form.surname} onChangeText={t => setForm({ ...form, surname: t })} />
-        <Text style={styles.fieldLabel}>Email</Text>
-        <TextInput style={styles.input} placeholder="e.g. thandi@business.com" placeholderTextColor="#9ca3af" value={form.email} onChangeText={t => setForm({ ...form, email: t })} keyboardType="email-address" autoCapitalize="none" />
-        <Text style={styles.fieldLabel}>Password</Text>
-        <TextInput style={styles.input} placeholder="Min 6 characters" placeholderTextColor="#9ca3af" value={form.password} onChangeText={t => setForm({ ...form, password: t })} secureTextEntry />
-        <Text style={styles.fieldLabel}>Phone Number</Text>
-        <TextInput style={styles.input} placeholder="e.g. 0821234567" placeholderTextColor="#9ca3af" value={form.phoneNumber} onChangeText={t => setForm({ ...form, phoneNumber: t })} keyboardType="phone-pad" />
-        <Text style={styles.fieldLabel}>Role</Text>
-        <View style={styles.chipRow}>
-          {STAFF_ROLES.map(r => (
-            <TouchableOpacity key={r.value} style={[styles.roleChip, form.role === r.value && { backgroundColor: colors.primary }]} onPress={() => setForm({ ...form, role: r.value })}>
-              <Text style={[styles.roleChipText, form.role === r.value && { color: '#fff' }]}>{r.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {/* Role permissions preview */}
-        {form.role && (
-          <View style={styles.permPreview}>
-            <Text style={styles.permTitle}>{STAFF_ROLES.find(r => r.value === form.role)?.label}</Text>
-            <Text style={styles.permDesc}>{STAFF_ROLES.find(r => r.value === form.role)?.description}</Text>
-            <View style={styles.permChipRow}>
-              {ROLE_PERMISSIONS[form.role]?.map(p => (
-                <View key={p} style={[styles.permChip, { backgroundColor: colors.primary + '15' }]}>
-                  <Text style={[styles.permChipText, { color: colors.primary }]}>{p}</Text>
-                </View>
-              ))}
-            </View>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>Add Staff Member</Text>
           </View>
-        )}
-        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={handleCreate} disabled={submitting}>
-          <Text style={styles.primaryBtnText}>{submitting ? 'Adding...' : 'Add Staff Member'}</Text>
-        </TouchableOpacity>
+          <View style={styles.backBtn} />
+        </View>
+
+        <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+          <Text style={styles.fieldLabel}>First Name</Text>
+          <TextInput style={styles.input} placeholder="e.g. Thandi" placeholderTextColor="#9ca3af" value={form.name} onChangeText={t => setForm({ ...form, name: t })} />
+          <Text style={styles.fieldLabel}>Surname</Text>
+          <TextInput style={styles.input} placeholder="e.g. Nkosi" placeholderTextColor="#9ca3af" value={form.surname} onChangeText={t => setForm({ ...form, surname: t })} />
+          <Text style={styles.fieldLabel}>Email</Text>
+          <TextInput style={styles.input} placeholder="e.g. thandi@business.com" placeholderTextColor="#9ca3af" value={form.email} onChangeText={t => setForm({ ...form, email: t })} keyboardType="email-address" autoCapitalize="none" />
+          <Text style={styles.fieldLabel}>Password</Text>
+          <TextInput style={styles.input} placeholder="Min 6 characters" placeholderTextColor="#9ca3af" value={form.password} onChangeText={t => setForm({ ...form, password: t })} secureTextEntry />
+          <Text style={styles.fieldLabel}>Phone Number</Text>
+          <TextInput style={styles.input} placeholder="e.g. 0821234567" placeholderTextColor="#9ca3af" value={form.phoneNumber} onChangeText={t => setForm({ ...form, phoneNumber: t })} keyboardType="phone-pad" />
+
+          <View style={styles.roleLabelRow}>
+            <Text style={styles.fieldLabel}>Role</Text>
+            <TouchableOpacity style={styles.viewRolesBtn} onPress={() => setShowRolesModal(true)}>
+              <AppIcon name="information-circle-outline" size={15} color={colors.primary} />
+              <Text style={[styles.viewRolesBtnText, { color: colors.primary }]}>View Staff Roles</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.chipRow}>
+            {STAFF_ROLES.map(r => (
+              <TouchableOpacity key={r.value} style={[styles.roleChip, form.role === r.value && { backgroundColor: colors.primary }]} onPress={() => setForm({ ...form, role: r.value })}>
+                <Text style={[styles.roleChipText, form.role === r.value && { color: '#fff' }]}>{r.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 20 }]} onPress={handleCreate} disabled={submitting}>
+            <Text style={styles.primaryBtnText}>{submitting ? 'Adding...' : 'Add Staff Member'}</Text>
+          </TouchableOpacity>
+        </KeyboardAwareScroll>
       </View>
-    );
-  };
+    </Modal>
+  );
+
+  // Staff Roles & Responsibilities — reference modal.
+  const renderRolesModal = () => (
+    <Modal visible={showRolesModal} animationType="slide" transparent onRequestClose={() => setShowRolesModal(false)}>
+      <View style={styles.rolesOverlay}>
+        <View style={styles.rolesSheet}>
+          <View style={styles.rolesSheetHandle} />
+          <View style={styles.rolesSheetHeader}>
+            <Text style={styles.rolesSheetTitle}>Staff Roles & Responsibilities</Text>
+            <TouchableOpacity onPress={() => setShowRolesModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <AppIcon name="close" size={22} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ maxHeight: '100%' }} contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            {STAFF_ROLES.map(role => {
+              const rc = getRoleBadgeColor(role.value);
+              const selectable = showForm; // allow tap-to-select when opened from the Add form
+              return (
+                <TouchableOpacity
+                  key={role.value}
+                  activeOpacity={selectable ? 0.6 : 1}
+                  onPress={selectable ? () => { setForm({ ...form, role: role.value }); setShowRolesModal(false); } : undefined}
+                  style={styles.roleRow}
+                >
+                  <View style={styles.roleHeader}>
+                    <View style={[styles.badge, { backgroundColor: rc.bg }]}>
+                      <Text style={[styles.badgeText, { color: rc.color }]}>{role.label}</Text>
+                    </View>
+                    {selectable && form.role === role.value && (
+                      <AppIcon name="checkmark-circle" size={18} color={colors.primary} />
+                    )}
+                  </View>
+                  <Text style={styles.roleDesc}>{role.description}</Text>
+                  <View style={styles.permChipRow}>
+                    {ROLE_PERMISSIONS[role.value]?.map(p => (
+                      <View key={p} style={styles.permChipSmall}>
+                        <Text style={styles.permChipSmallText}>{p}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderEditForm = (member) => (
     <View key={member.id} style={[styles.staffCard, { borderColor: colors.primary, borderWidth: 1.5 }]}>
@@ -316,7 +367,6 @@ export default function StaffScreen() {
         <Text style={styles.loadingText}>Loading staff...</Text>
       ) : (
         <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 140 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-          {renderCreateForm()}
           {staff.length === 0 ? (
             <View style={styles.emptyCard}>
               <AppIcon name="people-outline" size={28} color="#9ca3af" style={{ marginBottom: 8 }} />
@@ -325,33 +375,11 @@ export default function StaffScreen() {
           ) : (
             staff.map(member => renderStaffCard(member))
           )}
-
-          {/* Roles Reference */}
-          <View style={[styles.rolesSection, { marginTop: 20 }]}>
-            <Text style={styles.rolesSectionTitle}>Staff Roles & Permissions</Text>
-            {STAFF_ROLES.map(role => {
-              const rc = getRoleBadgeColor(role.value);
-              return (
-                <View key={role.value} style={styles.roleRow}>
-                  <View style={styles.roleHeader}>
-                    <View style={[styles.badge, { backgroundColor: rc.bg }]}>
-                      <Text style={[styles.badgeText, { color: rc.color }]}>{role.label}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.roleDesc}>{role.description}</Text>
-                  <View style={styles.permChipRow}>
-                    {ROLE_PERMISSIONS[role.value]?.map(p => (
-                      <View key={p} style={styles.permChipSmall}>
-                        <Text style={styles.permChipSmallText}>{p}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
         </KeyboardAwareScroll>
       )}
+
+      {renderAddStaffModal()}
+      {renderRolesModal()}
     </View>
   );
 }
@@ -378,6 +406,16 @@ const styles = StyleSheet.create({
   roleChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f3f4f6' },
   roleChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
   primaryBtn: { borderRadius: 8, paddingVertical: 14, alignItems: 'center' },
+  // Add-form: role label row with the "View Staff Roles" trigger.
+  roleLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  viewRolesBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6 },
+  viewRolesBtnText: { fontSize: 12, fontWeight: '600' },
+  // Roles modal (bottom sheet)
+  rolesOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  rolesSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24, maxHeight: '85%' },
+  rolesSheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb', marginBottom: 14 },
+  rolesSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  rolesSheetTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
   primaryBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   // Permissions preview
   permPreview: { backgroundColor: '#f9fafb', borderRadius: 8, padding: 12, marginTop: 8 },
@@ -415,7 +453,7 @@ const styles = StyleSheet.create({
   rolesSection: { backgroundColor: '#fff', borderRadius: 10, padding: 14 },
   rolesSectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12, textAlign: 'center' },
   roleRow: { marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  roleHeader: { marginBottom: 4 },
+  roleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   roleDesc: { fontSize: 12, color: '#6b7280', marginBottom: 6 },
   permChipSmall: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: '#f3f4f6', marginRight: 4, marginBottom: 4 },
   permChipSmallText: { fontSize: 10, color: '#6b7280' },
