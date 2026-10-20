@@ -275,9 +275,13 @@ export default function MessagesScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.headerRow}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
-          <AppIcon name="chevron-back" size={22} color="#fff" />
-        </TouchableOpacity>
+        {navigation.canGoBack() ? (
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
+            <AppIcon name="chevron-back" size={22} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
         <View style={styles.headerCenter}>
           <Text style={styles.title}>Messages</Text>
         </View>

@@ -109,7 +109,14 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Notifications</Text>
+      <View style={styles.headerRow}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
+            <AppIcon name="chevron-back" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.title}>Notifications</Text>
+      </View>
       {loading ? (
         <Text style={styles.loadingText}>Loading notifications...</Text>
       ) : notifications.length === 0 ? (
@@ -158,7 +165,9 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f9fafb', padding: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginTop: 40, marginBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 40, marginBottom: 16 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center' },
   unreadCard: { borderLeftWidth: 4, borderLeftColor: '#0d9488' },
   cardContent: { flex: 1 },
