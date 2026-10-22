@@ -80,21 +80,12 @@ function persistTokens(data) {
   return { token, refresh };
 }
 
-// Staff login flow: authenticates with loginType STAFF, then resolves the staff
-// record (for name + owning business) and the business context so staff operate
-// on behalf of their business. Permissions come from the login response.
-async function staffLogin(email, password) {
-  let resp;
-  try {
-    resp = await apiClient.post('/auth/login', { emailOrCellphone: email, password, loginType: 'STAFF' });
-  } catch (error) {
-    throw handleApiError(error);
-  }
-  const data = resp.data;
-  const { token, refresh } = persistTokens(data);
-  if (token) await storage.setItem('crm_token', token);
-  if (refresh) await storage.setItem('crm_refresh_token', refresh);
-
+// Builds the staff user object from an already-successful login response (token
+// assumed persisted). Resolves the staff record (name + owning business) and the
+// business context so staff operate on behalf of their business. Permissions
+// come from the login response. Reused whether the member authenticated via the
+// STAFF or BUSINESS login type.
+async function buildStaffUser(email, data) {
   const permissions = Array.isArray(data?.permissions) ? data.permissions : [];
   const staffRole = data?.staffRole || data?.role || 'STAFF';
 
@@ -134,6 +125,22 @@ async function staffLogin(email, password) {
   };
 }
 
+// Staff login flow: authenticates with loginType STAFF, persists tokens, then
+// builds the staff user object.
+async function staffLogin(email, password) {
+  let resp;
+  try {
+    resp = await apiClient.post('/auth/login', { emailOrCellphone: email, password, loginType: 'STAFF' });
+  } catch (error) {
+    throw handleApiError(error);
+  }
+  const data = resp.data;
+  const { token, refresh } = persistTokens(data);
+  if (token) await storage.setItem('crm_token', token);
+  if (refresh) await storage.setItem('crm_refresh_token', refresh);
+  return await buildStaffUser(email, data);
+}
+
 const authService = {
   login: async (email, password) => {
     await storage.deleteItem('crm_token');
@@ -153,16 +160,29 @@ const authService = {
       return await staffLogin(email, password);
     }
 
-    // Business-owner success path.
+    // The BUSINESS login succeeded. The backend now also accepts STAFF members
+    // via the BUSINESS login type and returns role=STAFF for them. Detect that
+    // and resolve them as staff (they won't appear in the attraction users list).
     const data = bizResp.data;
+    const role = (data?.role || '').toString().toUpperCase();
+    const isStaffRole = role.includes('STAFF') && !role.includes('BUSINESS');
     const { token, refresh } = persistTokens(data);
     if (token) await storage.setItem('crm_token', token);
     if (refresh) await storage.setItem('crm_refresh_token', refresh);
 
+    if (isStaffRole) {
+      return await buildStaffUser(email, data);
+    }
+
+    // Business-owner success path.
     const payload = decodeJwtPayload(token);
     const userEmail = payload?.sub || email;
     const business = await findBusinessByEmail(userEmail);
     if (!business) {
+      // Not an owner and not flagged staff — could still be a staff account the
+      // backend didn't role-tag; try the dedicated STAFF login before rejecting.
+      const staffUser = await staffLogin(email, password).catch(() => null);
+      if (staffUser) return staffUser;
       await storage.deleteItem('crm_token');
       await storage.deleteItem('crm_refresh_token');
       throw new Error('This account is not associated with a business. Please use the customer app instead.');

@@ -36,7 +36,9 @@ const paymentService = {
   },
 
   // Initiates an Ozow payment. The response includes an `approvalLink` that
-  // should be shared with the customer to complete payment.
+  // should be shared with the customer to complete payment. `isMobile: true`
+  // tells Ozow to redirect to the customer app deep link (tourite://payment/success)
+  // on success, since the payer opens the shared link on their mobile device.
   createOzowPayment: async ({ amount, bookingReference }) => {
     try {
       const r = await apiClient.post('/payments', {
@@ -44,6 +46,7 @@ const paymentService = {
         bookingReference,
         paymentMethod: 'OZOW',
         paymentStatus: 'PENDING',
+        isMobile: true,
       });
       return r.data;
     } catch (e) { throw handleApiError(e); }
