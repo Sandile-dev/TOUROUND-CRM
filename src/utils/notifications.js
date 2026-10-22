@@ -66,8 +66,14 @@ export async function presentLocalNotification(title, body) {
         title: title || 'New notification',
         body: body || '',
         sound: 'default',
+        // On Android the sound/vibration comes from the channel, so deliver to
+        // the sound-enabled `default` channel we set up in initNotifications.
+        ...(Platform.OS === 'android' ? { channelId: 'default' } : {}),
       },
-      trigger: null, // deliver immediately
+      trigger:
+        Platform.OS === 'android'
+          ? { channelId: 'default' } // immediate, routed to the sound channel
+          : null, // iOS: deliver immediately
     });
   } catch {
     // Ignore — notification is best-effort.
