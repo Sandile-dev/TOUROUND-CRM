@@ -9,8 +9,12 @@ import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OfflineBanner from './src/components/OfflineBanner';
+import useInAppUpdates from './src/hooks/useInAppUpdates';
 
 export default function App() {
+  // Auto-detect and apply new store versions on startup (Play Store in-app update).
+  useInAppUpdates();
+
   useEffect(() => {
     // Clear app cache on fresh start (keep auth data)
     clearAppCache();
