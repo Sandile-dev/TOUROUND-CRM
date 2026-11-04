@@ -4,8 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import paymentService from '../api/paymentService';
+import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
-import { resolveCategory, usesRoomBookings } from '../constants/attractions';
+import { enrichReservationAmounts } from '../utils/enrichReservations';
+import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 // Fee structure (mirrors backend PaymentServiceImpl):
 //   platform fee 8%  +  service fee 5%  =>  business keeps 87%.
@@ -78,40 +80,83 @@ export default function PaymentsScreen() {
         txData = Array.isArray(txRes) ? txRes : txRes?.content || [];
       } catch {}
 
-      if (walletData) {
-        const grossSales = txData
-          .filter(t => t.type === 'EARNING' || t.type === 'CREDIT')
-          .reduce((sum, t) => sum + (t.amount || 0), 0);
-        const platformFee = grossSales * COMMISSION_RATE;
-        const serviceFee = grossSales * DELIVERY_FEE_RATE;
-        setEarnings({
-          grossSales: grossSales / (1 - COMMISSION_RATE - DELIVERY_FEE_RATE),
-          platformFee, serviceFee, netEarnings: grossSales,
-          pendingBalance: walletData.pendingBalance || 0,
-          availableBalance: walletData.balance || walletData.availableBalance || 0,
-          totalPaidOut: walletData.totalPaidOut || 0,
-          transactionCount: txData.length,
-          avgOrderValue: txData.length > 0 ? grossSales / txData.length : 0,
-        });
-      } else {
-        setEarnings(computeEarningsFromLocal());
-      }
+      // Fetch reservations to build real earnings data (totalPrice is on the
+      // reservation/service, not in the wallet which may have zero transactions).
+      let reservations = [];
+      try {
+        const type = usesRoomBookings(attractionId) ? 'rooms' : usesTableReservations(attractionId) ? 'tables' : 'slots';
+        let resData;
+        if (usesRoomBookings(attractionId)) resData = await businessService.getBookings(user.id);
+        else if (usesTableReservations(attractionId)) resData = await businessService.getTableReservations(user.id);
+        else resData = await businessService.getReservations(user.id);
+        reservations = Array.isArray(resData) ? resData : resData?.content || [];
+        await enrichReservationAmounts(reservations, type);
+      } catch {}
 
-      const mappedTx = txData.map(t => ({
-        id: t.id,
-        reference: t.transactionId || t.reference || `TXN-${t.id}`,
-        type: t.type || t.description || 'Payment',
-        customer: t.customerName || t.description || '',
-        date: t.createdAt?.split('T')[0] || t.date || '',
-        grossAmount: t.grossAmount || t.amount || 0,
-        platformFee: (t.grossAmount || t.amount || 0) * COMMISSION_RATE,
-        serviceFee: (t.grossAmount || t.amount || 0) * DELIVERY_FEE_RATE,
-        netAmount: t.netAmount || t.amount || 0,
-        status: t.status || t.paymentStatus || 'COMPLETED',
-        payoutStatus: t.payoutStatus || 'PENDING',
-      }));
-      setTransactions(mappedTx.length > 0 ? mappedTx : computeTransactionsFromLocal());
+      // Compute gross sales from completed/checked-out reservations.
+      const completedRes = reservations.filter((r) => {
+        const s = (r.bookingStatus || r.reservationStatus || '').toUpperCase();
+        return ['CHECKED_OUT', 'COMPLETED', 'ACCEPTED', 'CONFIRMED', 'RESERVED', 'BOOKED'].includes(s) &&
+          (r.paymentStatus || '').toUpperCase() !== 'FAILED';
+      });
+      const grossSalesFromRes = completedRes.reduce((s, r) => s + (r.totalPrice || 0), 0);
 
+      // Use wallet tx earnings if available, otherwise fall back to reservation totals.
+      const walletGross = txData
+        .filter(t => t.type === 'EARNING' || t.type === 'CREDIT')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      const grossSales = walletGross > 0 ? walletGross / (1 - COMMISSION_RATE - DELIVERY_FEE_RATE) : grossSalesFromRes;
+      const platformFee = grossSales * COMMISSION_RATE;
+      const serviceFee = grossSales * DELIVERY_FEE_RATE;
+      const netEarnings = grossSales - platformFee - serviceFee;
+      const available = walletData?.balance ?? walletData?.availableBalance ?? netEarnings;
+      const pending = walletData?.pendingBalance ?? 0;
+      const paidOut = walletData?.totalPaidOut ?? 0;
+      const txCount = txData.length || completedRes.length;
+
+      setEarnings({
+        grossSales,
+        platformFee,
+        serviceFee,
+        netEarnings,
+        pendingBalance: pending,
+        availableBalance: available,
+        totalPaidOut: paidOut,
+        transactionCount: txCount,
+        avgOrderValue: txCount > 0 ? grossSales / txCount : 0,
+      });
+
+      // Map wallet transactions; if empty, build from reservation records.
+      const mappedTx = txData.length > 0
+        ? txData.map(t => ({
+            id: t.id,
+            reference: t.transactionId || t.reference || `TXN-${t.id}`,
+            type: t.type || t.description || 'Payment',
+            customer: t.customerName || t.description || '',
+            date: t.createdAt?.split('T')[0] || t.date || '',
+            grossAmount: t.grossAmount || t.amount || 0,
+            platformFee: (t.grossAmount || t.amount || 0) * COMMISSION_RATE,
+            serviceFee: (t.grossAmount || t.amount || 0) * DELIVERY_FEE_RATE,
+            netAmount: t.netAmount || t.amount || 0,
+            status: t.status || t.paymentStatus || 'COMPLETED',
+            payoutStatus: t.payoutStatus || 'PENDING',
+          }))
+        : completedRes.map((r, idx) => ({
+            id: r.id,
+            reference: r.reservationReference || r.bookingReference || `#${r.id}`,
+            type: 'Reservation',
+            customer: r.customerName || r.customerEmail || '',
+            date: (r.checkInDate || r.date || r.createdAt || '').split('T')[0],
+            grossAmount: r.totalPrice || 0,
+            platformFee: (r.totalPrice || 0) * COMMISSION_RATE,
+            serviceFee: (r.totalPrice || 0) * DELIVERY_FEE_RATE,
+            netAmount: (r.totalPrice || 0) * (1 - COMMISSION_RATE - DELIVERY_FEE_RATE),
+            status: r.paymentStatus || 'COMPLETED',
+            payoutStatus: 'PENDING',
+          }));
+      setTransactions(mappedTx);
+
+      // Payouts from wallet.
       const payoutItems = txData
         .filter(t => t.type === 'PAYOUT' || t.type === 'DEBIT')
         .map(t => ({
@@ -119,66 +164,49 @@ export default function PaymentsScreen() {
           amount: Math.abs(t.amount || 0), status: t.status || 'COMPLETED',
           date: t.createdAt?.split('T')[0] || '', period: '', method: 'Bank Transfer',
         }));
-      setPayouts(payoutItems.length > 0 ? payoutItems : computePayoutsFromLocal());
+      setPayouts(payoutItems);
 
+      // Commission owed on cash payments.
       try {
         const commRes = await paymentService.getCommissionOwed();
         setCommissionOwed(commRes?.amount || commRes?.commissionOwed || commRes || 0);
       } catch {
-        const cashTx = txData.filter(t => t.paymentMethod === 'CASH' || t.type === 'CASH');
-        setCommissionOwed(cashTx.reduce((s, t) => s + (t.grossAmount || t.amount || 0) * (COMMISSION_RATE + DELIVERY_FEE_RATE), 0));
+        const cashRes = reservations.filter(r => (r.paymentMethod || '').toUpperCase() === 'CASH');
+        setCommissionOwed(cashRes.reduce((s, r) => s + (r.totalPrice || 0) * TOTAL_FEE_RATE, 0));
       }
 
-      const cashItems = txData
-        .filter(t => t.paymentMethod === 'CASH' || t.type === 'CASH')
-        .map(t => ({
+      // Cash transactions.
+      const cashItems = [
+        ...txData.filter(t => t.paymentMethod === 'CASH' || t.type === 'CASH').map(t => ({
           id: t.id, reference: t.bookingReference || t.transactionId || `CASH-${t.id}`,
           customer: t.customerName || t.description || '',
           date: t.createdAt?.split('T')[0] || t.date || '',
           amount: t.grossAmount || t.amount || 0,
-          commission: (t.grossAmount || t.amount || 0) * (COMMISSION_RATE + DELIVERY_FEE_RATE),
+          commission: (t.grossAmount || t.amount || 0) * TOTAL_FEE_RATE,
           status: t.commissionStatus || t.status || 'UNSETTLED',
-        }));
-      setCashTransactions(cashItems.length > 0 ? cashItems : computeCashTransactionsFromLocal());
-    } catch {
-      setEarnings(computeEarningsFromLocal());
-      setTransactions(computeTransactionsFromLocal());
-      setPayouts(computePayoutsFromLocal());
-      setCashTransactions(computeCashTransactionsFromLocal());
-      setCommissionOwed(540);
+        })),
+        ...reservations
+          .filter(r => (r.paymentMethod || '').toUpperCase() === 'CASH')
+          .map(r => ({
+            id: r.id, reference: r.reservationReference || r.bookingReference || `#${r.id}`,
+            customer: r.customerName || r.customerEmail || '',
+            date: (r.checkInDate || r.date || r.createdAt || '').split('T')[0],
+            amount: r.totalPrice || 0,
+            commission: (r.totalPrice || 0) * TOTAL_FEE_RATE,
+            status: 'UNSETTLED',
+          })),
+      ].filter((v, i, a) => a.findIndex(x => x.id === v.id) === i); // dedupe
+      setCashTransactions(cashItems);
+
+    } catch (err) {
+      // On total failure, show real zeros rather than dummy data.
+      setEarnings({ grossSales: 0, platformFee: 0, serviceFee: 0, netEarnings: 0, pendingBalance: 0, availableBalance: 0, totalPaidOut: 0, transactionCount: 0, avgOrderValue: 0 });
+      setTransactions([]);
+      setPayouts([]);
+      setCashTransactions([]);
+      setCommissionOwed(0);
     } finally { setLoading(false); setRefreshing(false); }
   };
-
-  const computeEarningsFromLocal = () => {
-    const grossSales = 12500;
-    const platformFee = grossSales * COMMISSION_RATE;
-    const serviceFee = grossSales * DELIVERY_FEE_RATE;
-    const netEarnings = grossSales - platformFee - serviceFee;
-    return { grossSales, platformFee, serviceFee, netEarnings, pendingBalance: netEarnings * 0.3, availableBalance: netEarnings * 0.7, totalPaidOut: netEarnings * 2.5, transactionCount: 34, avgOrderValue: grossSales / 34 };
-  };
-
-  const computeTransactionsFromLocal = () => [
-    { id: 1, reference: 'TXN-001234', type: 'Booking', customer: 'John M.', date: '2026-07-27', grossAmount: 850, platformFee: 127.5, serviceFee: 42.5, netAmount: 680, status: 'COMPLETED', payoutStatus: 'PAID' },
-    { id: 2, reference: 'TXN-001235', type: 'Table Reservation', customer: 'Sarah K.', date: '2026-07-26', grossAmount: 450, platformFee: 67.5, serviceFee: 22.5, netAmount: 360, status: 'COMPLETED', payoutStatus: 'PENDING' },
-    { id: 3, reference: 'TXN-001236', type: 'Event Ticket', customer: 'Mike T.', date: '2026-07-25', grossAmount: 200, platformFee: 30, serviceFee: 10, netAmount: 160, status: 'COMPLETED', payoutStatus: 'PENDING' },
-    { id: 4, reference: 'TXN-001237', type: 'Slot Reservation', customer: 'Lisa N.', date: '2026-07-24', grossAmount: 350, platformFee: 52.5, serviceFee: 17.5, netAmount: 280, status: 'COMPLETED', payoutStatus: 'PAID' },
-    { id: 5, reference: 'TXN-001238', type: 'Booking', customer: 'David R.', date: '2026-07-23', grossAmount: 1200, platformFee: 180, serviceFee: 60, netAmount: 960, status: 'REFUNDED', payoutStatus: 'REVERSED' },
-    { id: 6, reference: 'TXN-001239', type: 'Table Reservation', customer: 'Thandi M.', date: '2026-07-22', grossAmount: 600, platformFee: 90, serviceFee: 30, netAmount: 480, status: 'COMPLETED', payoutStatus: 'PAID' },
-  ];
-
-  const computePayoutsFromLocal = () => [
-    { id: 1, reference: 'PAY-0056', amount: 4250, status: 'COMPLETED', date: '2026-07-21', period: '14 Jul - 20 Jul 2026', method: 'Bank Transfer' },
-    { id: 2, reference: 'PAY-0055', amount: 3800, status: 'COMPLETED', date: '2026-07-14', period: '07 Jul - 13 Jul 2026', method: 'Bank Transfer' },
-    { id: 3, reference: 'PAY-0054', amount: 5100, status: 'COMPLETED', date: '2026-07-07', period: '30 Jun - 06 Jul 2026', method: 'Bank Transfer' },
-  ];
-
-  const computeCashTransactionsFromLocal = () => [
-    { id: 1, reference: 'RES-78432', customer: 'Peter M.', date: '2026-07-28', amount: 850, commission: 170, status: 'UNSETTLED' },
-    { id: 2, reference: 'RES-78401', customer: 'Nomsa K.', date: '2026-07-27', amount: 1200, commission: 240, status: 'UNSETTLED' },
-    { id: 3, reference: 'BOOK-45612', customer: 'James O.', date: '2026-07-25', amount: 650, commission: 130, status: 'SETTLED' },
-    { id: 4, reference: 'RES-78389', customer: 'Thabo N.', date: '2026-07-24', amount: 400, commission: 80, status: 'SETTLED' },
-    { id: 5, reference: 'BOOK-45598', customer: 'Amanda S.', date: '2026-07-22', amount: 950, commission: 190, status: 'SETTLED' },
-  ];
 
   const handleRequestPayout = async () => {
     if (!earnings || earnings.availableBalance < PAYOUT_THRESHOLD) return;

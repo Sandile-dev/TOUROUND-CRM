@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
+import { enrichReservationAmounts } from '../utils/enrichReservations';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function AnalyticsScreen() {
@@ -39,6 +40,9 @@ export default function AnalyticsScreen() {
       }
 
       const customerIds = new Set();
+      // Fill in totalPrice from the service entity when the backend returns null.
+      const type = usesRoomBookings(attractionId) ? 'rooms' : usesTableReservations(attractionId) ? 'tables' : 'slots';
+      await enrichReservationAmounts(reservations, type);
       reservations.forEach(r => {
         const id = r.customerId || r.customerUserId;
         if (id) customerIds.add(id);

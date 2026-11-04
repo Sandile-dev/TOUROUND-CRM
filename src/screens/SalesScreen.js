@@ -7,6 +7,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
+import { enrichReservationAmounts } from '../utils/enrichReservations';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 const PERIODS = ['all', 'week', 'month', 'quarter', 'year'];
@@ -74,8 +75,9 @@ export default function SalesScreen() {
         return true;
       });
 
-      // Enrich reservation rows with customer details (reservations only carry
-      // customerId). Cache profiles by id to avoid duplicate lookups.
+      // Enrich reservation rows with customer details and slot prices.
+      const type = usesRoomBookings(attractionId) ? 'rooms' : usesTableReservations(attractionId) ? 'tables' : 'slots';
+      await enrichReservationAmounts(filtered, type);
       const profileCache = {};
       await Promise.all(filtered.map(async (item) => {
         if (item.type === 'EVENT_TICKET') return;

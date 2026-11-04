@@ -8,6 +8,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import useRefreshOnFocus from '../hooks/useRefreshOnFocus';
+import { enrichReservationAmounts } from '../utils/enrichReservations';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function ReservationsScreen() {
@@ -37,10 +38,14 @@ export default function ReservationsScreen() {
   const loadData = async () => {
     try {
       let res;
+      const type = usesRoomBookings(attractionId) ? 'rooms' : usesTableReservations(attractionId) ? 'tables' : 'slots';
       if (usesRoomBookings(attractionId)) res = await businessService.getBookings(user.id);
       else if (usesTableReservations(attractionId)) res = await businessService.getTableReservations(user.id);
       else res = await businessService.getReservations(user.id);
-      setItems(Array.isArray(res) ? res : res?.content || []);
+      const list = Array.isArray(res) ? res : res?.content || [];
+      // Fill in totalPrice from the slot/room/table when the backend returns it null.
+      await enrichReservationAmounts(list, type);
+      setItems(list);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
