@@ -64,7 +64,16 @@ export default function StaffScreen() {
     try {
       const res = await staffService.getStaffMembers();
       const list = Array.isArray(res) ? res : res?.content || [];
-      setStaff(list.map(normalizeStaff));
+      // Show only staff the business itself created — exclude admin-linked
+      // staff (e.g. "Sales Business Partner") whose position is not one of the
+      // app's own role labels.
+      const ownRoleValues = STAFF_ROLES.map(r => r.value.toLowerCase());
+      const ownRoleLabels = STAFF_ROLES.map(r => r.label.toLowerCase());
+      const ownStaff = list.filter(s => {
+        const pos = (s.position || s.role || '').toLowerCase();
+        return ownRoleValues.includes(pos) || ownRoleLabels.includes(pos);
+      });
+      setStaff(ownStaff.map(normalizeStaff));
     } catch {
       setStaff([]);
     } finally { setLoading(false); setRefreshing(false); }

@@ -75,7 +75,16 @@ export default function ReservationsScreen() {
 
       let merged = { ...item };
       if (reservationRes.status === 'fulfilled' && reservationRes.value) {
-        merged = { ...merged, ...reservationRes.value };
+        const fresh = reservationRes.value;
+        // Preserve the enriched totalPrice from the list item — the fresh fetch
+        // returns totalPrice: null from the backend even after enrichment.
+        merged = {
+          ...merged,
+          ...fresh,
+          totalPrice: (fresh.totalPrice != null && fresh.totalPrice !== 0)
+            ? fresh.totalPrice
+            : item.totalPrice,
+        };
       }
       if (customerRes.status === 'fulfilled' && customerRes.value) {
         const c = customerRes.value;

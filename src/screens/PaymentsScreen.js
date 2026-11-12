@@ -112,7 +112,8 @@ export default function PaymentsScreen() {
       const serviceFee = grossSales * DELIVERY_FEE_RATE;
       const netEarnings = grossSales - platformFee - serviceFee;
       const available = walletData?.balance ?? walletData?.availableBalance ?? netEarnings;
-      const pending = walletData?.pendingBalance ?? 0;
+      // Backend returns `pendingAmount` per the updated wallet contract (curl 18.1).
+      const pending = walletData?.pendingAmount ?? walletData?.pendingBalance ?? 0;
       const paidOut = walletData?.totalPaidOut ?? 0;
       const txCount = txData.length || completedRes.length;
 
@@ -141,7 +142,11 @@ export default function PaymentsScreen() {
             serviceFee: (t.grossAmount || t.amount || 0) * DELIVERY_FEE_RATE,
             netAmount: t.netAmount || t.amount || 0,
             status: t.status || t.paymentStatus || 'COMPLETED',
-            payoutStatus: t.payoutStatus || 'PENDING',
+            // Per curl 18.2, payout status comes from the transaction's own `status` field.
+            // For EARNING transactions, payout is PENDING until an admin completes it.
+            payoutStatus: t.transactionType === 'PAYOUT' || t.type === 'PAYOUT'
+              ? (t.status || 'PENDING')
+              : 'PENDING',
           }))
         : completedRes.map((r, idx) => ({
             id: r.id,
@@ -671,7 +676,7 @@ export default function PaymentsScreen() {
             <TextInput style={styles.input} value={cashForm.amount} onChangeText={t => setCashForm({ ...cashForm, amount: t })} placeholder="e.g. 850.00" placeholderTextColor="#9ca3af" keyboardType="decimal-pad" />
             {cashForm.amount ? (
               <View style={styles.commPreview}>
-                <Text style={styles.commPreviewText}>Commission: R{(parseFloat(cashForm.amount || 0) * (COMMISSION_RATE + DELIVERY_FEE_RATE)).toFixed(2)} · You keep: R{(parseFloat(cashForm.amount || 0) * 0.8).toFixed(2)}</Text>
+                <Text style={styles.commPreviewText}>Commission: R{(parseFloat(cashForm.amount || 0) * TOTAL_FEE_RATE).toFixed(2)} · You keep: R{(parseFloat(cashForm.amount || 0) * (1 - TOTAL_FEE_RATE)).toFixed(2)} ({NET_RATE_PERCENT}%)</Text>
               </View>
             ) : null}
             <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16, flexDirection: 'row', gap: 8 }]} onPress={handleRecordCash} disabled={submitting}>
