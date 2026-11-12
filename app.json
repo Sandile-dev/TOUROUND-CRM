@@ -17,10 +17,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.touround.crm",
+      "buildNumber": "1",
+      "appStoreUrl": "",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to set your business address on the map.",
         "NSPhotoLibraryUsageDescription": "We need access to your photos to upload your business logo and cover image.",
-        "NSCameraUsageDescription": "We need camera access to take photos for your business profile and posts."
+        "NSPhotoLibraryAddUsageDescription": "We need permission to save photos to your library.",
+        "NSCameraUsageDescription": "We need camera access to take photos for your business profile and posts.",
+        "NSMicrophoneUsageDescription": "We need microphone access to record videos for your business profile.",
+        "UIBackgroundModes": ["remote-notification"]
       },
       "config": {
         "googleMapsApiKey": "AIzaSyASyPpuufRkhcXfXjF5q69q0qw73izLV-I",
@@ -67,7 +72,16 @@
           "cameraPermission": "Allow Touround CRM to use your camera to take photos."
         }
       ],
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2bb5c4",
+          "sounds": [],
+          "mode": "production",
+          "requestPermissionOnLoading": false
+        }
+      ]
     ],
     "updates": {
       "enabled": true,

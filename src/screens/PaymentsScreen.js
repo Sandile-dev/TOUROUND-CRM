@@ -7,6 +7,7 @@ import paymentService from '../api/paymentService';
 import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
 import { enrichReservationAmounts } from '../utils/enrichReservations';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 // Fee structure (mirrors backend PaymentServiceImpl):
@@ -39,6 +40,7 @@ export default function PaymentsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { headerPaddingTop } = useHeaderInsets();
   const attractionId = resolveCategory(user?.attraction);
   const hasReservations = attractionId && !usesRoomBookings(attractionId);
   const TABS = hasReservations ? ALL_TABS : ALL_TABS.filter(t => t.id !== 'cash');
@@ -613,7 +615,7 @@ export default function PaymentsScreen() {
   return (
     <View style={styles.screen}>
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -690,7 +692,7 @@ export default function PaymentsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef' },
   // Header
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 44, paddingBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

@@ -5,12 +5,14 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 export default function CustomersScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { headerPaddingTop } = useHeaderInsets();
   const attractionId = resolveCategory(user?.attraction);
   const [activeTab, setActiveTab] = useState('customers');
   const [customers, setCustomers] = useState([]);
@@ -159,7 +161,7 @@ export default function CustomersScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -253,7 +255,7 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef', padding: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 40, marginBottom: 12 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

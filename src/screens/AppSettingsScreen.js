@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from 're
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, themeColors } from '../context/ThemeContext';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 
 const colorOptions = [
   { key: 'blue', label: 'Blue', color: '#2bb5c4' },
@@ -17,12 +18,13 @@ const colorOptions = [
 
 export default function AppSettingsScreen() {
   const { themeColor, setThemeColor, darkMode, setDarkMode, colors } = useTheme();
+  const { headerPaddingTop } = useHeaderInsets();
   const navigation = useNavigation();
 
   return (
     <ScrollView style={styles.screen}>
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -92,7 +94,7 @@ export default function AppSettingsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef', padding: 16 },
   // Header
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 40, marginBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

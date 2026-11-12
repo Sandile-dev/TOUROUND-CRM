@@ -26,6 +26,8 @@ export default function useInAppUpdates() {
         }
 
         // iOS: prompt then open the App Store product sheet.
+        // Set AppStoreID once the app is published (App Store Connect → App Info → Apple ID).
+        // e.g. ExpoInAppUpdates.setAppStoreId('123456789');
         const result = await ExpoInAppUpdates.checkForUpdate();
         if (!result?.updateAvailable) return;
         Alert.alert(

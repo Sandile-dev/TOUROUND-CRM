@@ -7,6 +7,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import staffService from '../api/staffService';
 import { ROLE_PERMISSIONS, permissionsForRole } from '../constants/permissions';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 
 const STAFF_ROLES = [
   { value: 'MANAGER', label: 'Manager', description: 'Full access to all features except staff management and business settings' },
@@ -31,6 +32,7 @@ export default function StaffScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { headerPaddingTop } = useHeaderInsets();
   // Only the business owner (not a staff account) can manage staff.
   const isOwner = !user?.isStaff;
 
@@ -351,7 +353,7 @@ export default function StaffScreen() {
   return (
     <View style={styles.screen}>
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -387,7 +389,7 @@ export default function StaffScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef' },
   // Header
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 44, paddingBottom: 14 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

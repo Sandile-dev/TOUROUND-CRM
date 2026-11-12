@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopNavbar from '../components/TopNavbar';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
@@ -14,6 +15,7 @@ export default function MessagesScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { headerPaddingTop } = useHeaderInsets();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -274,7 +276,7 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         {navigation.canGoBack() ? (
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
             <AppIcon name="chevron-back" size={22} color="#fff" />
@@ -410,7 +412,7 @@ export default function MessagesScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef', padding: 0 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 44, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

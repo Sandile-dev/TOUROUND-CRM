@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import promotionService from '../api/promotionService';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 import {
   resolveCategory,
   reservationTypeFor,
@@ -50,6 +51,7 @@ export default function PromotionsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { headerPaddingTop } = useHeaderInsets();
   const attractionId = resolveCategory(user?.attraction);
   const SERVICE_TYPES = SERVICE_TYPES_BY_RESERVATION[reservationTypeFor(attractionId)];
 
@@ -308,7 +310,7 @@ export default function PromotionsScreen() {
   return (
     <View style={styles.screen}>
       {/* Header */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -342,7 +344,7 @@ export default function PromotionsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef' },
   // Header
-  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 44, paddingBottom: 14 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },

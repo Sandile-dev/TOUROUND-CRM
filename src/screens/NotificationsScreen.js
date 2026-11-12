@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 
 export default function NotificationsScreen() {
   const { user } = useContext(AuthContext);
@@ -14,6 +15,7 @@ export default function NotificationsScreen() {
   const { showConfirm, showError } = useAlert();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { headerPaddingTop } = useHeaderInsets();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +111,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         {navigation.canGoBack() && (
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
             <AppIcon name="chevron-back" size={22} color="#fff" />
@@ -165,7 +167,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f9fafb', padding: 16 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 40, marginBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center' },

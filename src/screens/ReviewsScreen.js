@@ -6,11 +6,13 @@ import { useTheme } from '../context/ThemeContext';
 import businessService from '../api/businessService';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import AppIcon from '../components/AppIcon';
+import useHeaderInsets from '../hooks/useHeaderInsets';
 
 export default function ReviewsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { headerPaddingTop } = useHeaderInsets();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,7 +83,7 @@ export default function ReviewsScreen() {
 
   return (
     <KeyboardAwareScroll style={styles.screen} contentContainerStyle={styles.screenContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { paddingTop: headerPaddingTop }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={() => navigation.goBack()}>
           <AppIcon name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -168,7 +170,7 @@ export default function ReviewsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#f3f2ef' },
   screenContent: { padding: 16, paddingBottom: 140 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 40, marginBottom: 16 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   backIcon: { fontSize: 22, color: '#fff', marginTop: -1 },
   headerCenter: { flex: 1, alignItems: 'center' },
