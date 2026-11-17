@@ -134,19 +134,22 @@ export default function PaymentsScreen() {
         ? txData.map(t => ({
             id: t.id,
             reference: t.transactionId || t.reference || `TXN-${t.id}`,
-            type: t.type || t.description || 'Payment',
+            type: t.transactionType || t.type || 'Payment',
             customer: t.customerName || t.description || '',
-            date: t.createdAt?.split('T')[0] || t.date || '',
-            grossAmount: t.grossAmount || t.amount || 0,
+            date: (t.createdAt || t.transactionDate || t.date || '').split('T')[0],
+            grossAmount: t.grossAmount || Math.abs(t.amount) || 0,
             platformFee: (t.grossAmount || t.amount || 0) * COMMISSION_RATE,
             serviceFee: (t.grossAmount || t.amount || 0) * DELIVERY_FEE_RATE,
             netAmount: t.netAmount || t.amount || 0,
             status: t.status || t.paymentStatus || 'COMPLETED',
-            // Per curl 18.2, payout status comes from the transaction's own `status` field.
-            // For EARNING transactions, payout is PENDING until an admin completes it.
-            payoutStatus: t.transactionType === 'PAYOUT' || t.type === 'PAYOUT'
-              ? (t.status || 'PENDING')
-              : 'PENDING',
+            // `payoutStatus` is a dedicated field on the transaction DTO (curl 18.2).
+            // EARNING: status=COMPLETED but payoutStatus=PENDING until a payout is fulfilled.
+            // PAYOUT: both status and payoutStatus reflect the withdrawal state.
+            payoutStatus: t.payoutStatus || (
+              (t.transactionType === 'PAYOUT' || t.type === 'PAYOUT')
+                ? (t.status || 'PENDING')
+                : 'PENDING'
+            ),
           }))
         : completedRes.map((r, idx) => ({
             id: r.id,
@@ -163,13 +166,16 @@ export default function PaymentsScreen() {
           }));
       setTransactions(mappedTx);
 
-      // Payouts from wallet.
+      // Payouts from wallet — filter by transactionType (new contract) or type (legacy).
       const payoutItems = txData
-        .filter(t => t.type === 'PAYOUT' || t.type === 'DEBIT')
+        .filter(t => t.transactionType === 'PAYOUT' || t.type === 'PAYOUT' || t.type === 'DEBIT')
         .map(t => ({
-          id: t.id, reference: t.transactionId || `PAY-${t.id}`,
-          amount: Math.abs(t.amount || 0), status: t.status || 'COMPLETED',
-          date: t.createdAt?.split('T')[0] || '', period: '', method: 'Bank Transfer',
+          id: t.id, reference: t.reference || t.transactionId || `PAY-${t.id}`,
+          amount: Math.abs(t.amount || 0),
+          status: t.payoutStatus || t.status || 'PENDING',
+          date: (t.createdAt || t.transactionDate || '').split('T')[0],
+          period: '', method: 'Bank Transfer',
+          description: t.description || '',
         }));
       setPayouts(payoutItems);
 
@@ -544,6 +550,7 @@ export default function PaymentsScreen() {
               <View style={styles.txHeader}>
                 <View>
                   <Text style={styles.payoutRef}>{payout.reference}</Text>
+                  {payout.description ? <Text style={styles.txMeta}>{payout.description}</Text> : null}
                   {payout.period ? <Text style={styles.txDate}>{payout.period}</Text> : null}
                   <Text style={styles.txDate}>{payout.date} · {payout.method}</Text>
                 </View>

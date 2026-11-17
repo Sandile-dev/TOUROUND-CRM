@@ -22,6 +22,14 @@ const paymentService = {
   requestPayout: async (amount) => {
     try { const r = await apiClient.post(`/v1/wallet/payout?amount=${amount}`); return r.data; } catch (e) { throw handleApiError(e); }
   },
+  // Admin: mark a pending payout as completed (curl 18.4).
+  completePayout: async (reference) => {
+    try { const r = await apiClient.post(`/v1/wallet/admin/payout/complete?reference=${encodeURIComponent(reference)}`); return r.data; } catch (e) { throw handleApiError(e); }
+  },
+  // Admin: list all pending payouts across the platform (curl 18.5).
+  getPendingPayouts: async () => {
+    try { const r = await apiClient.get('/v1/wallet/admin/payout/pending'); return r.data; } catch (e) { throw handleApiError(e); }
+  },
   // Records a cash payment. Per the contract, cash is a payment with method
   // CASH and no explicit status — the backend marks it COMPLETED immediately.
   recordCashPayment: async ({ amount, bookingReference }) => {
