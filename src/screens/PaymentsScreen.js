@@ -309,8 +309,25 @@ export default function PaymentsScreen() {
       PENDING: { bg: '#fef3c7', color: '#92400e' }, PROCESSING: { bg: '#dbeafe', color: '#1e40af' },
       PAID: { bg: '#dcfce7', color: '#166534' }, REVERSED: { bg: '#fef2f2', color: '#991b1b' },
       UNSETTLED: { bg: '#fef3c7', color: '#92400e' }, SETTLED: { bg: '#dcfce7', color: '#166534' },
+      AWAITING_PAYOUT: { bg: '#fef3c7', color: '#92400e' }, PAID_OUT: { bg: '#dcfce7', color: '#166534' },
     };
     return map[status] || { bg: '#f3f4f6', color: '#6b7280' };
+  };
+
+  // Convert a raw payoutStatus value to a user-friendly label.
+  // Per the payout flow: EARNING transactions start as PENDING (meaning "awaiting
+  // payout") and flip to COMPLETED once a payout is fulfilled by admin or the
+  // 24-hour auto-complete scheduler.
+  const payoutStatusLabel = (status) => {
+    if (!status || status === 'PENDING') return 'Awaiting Payout';
+    if (status === 'COMPLETED') return 'Paid Out';
+    return status;
+  };
+
+  const payoutStatusKey = (status) => {
+    if (!status || status === 'PENDING') return 'AWAITING_PAYOUT';
+    if (status === 'COMPLETED') return 'PAID_OUT';
+    return status;
   };
 
   // --- RENDER: Overview Tab ---
@@ -418,7 +435,6 @@ export default function PaymentsScreen() {
         ) : (
           filtered.map(tx => {
             const ss = getStatusStyle(tx.status);
-            const ps = getStatusStyle(tx.payoutStatus);
             return (
               <View key={tx.id} style={styles.card}>
                 <View style={styles.txHeader}>
@@ -444,8 +460,8 @@ export default function PaymentsScreen() {
                   </View>
                   <View style={styles.txAmountCol}>
                     <Text style={styles.txAmountLabel}>Payout</Text>
-                    <View style={[styles.badge, { backgroundColor: ps.bg }]}>
-                      <Text style={[styles.badgeText, { color: ps.color }]}>{tx.payoutStatus}</Text>
+                    <View style={[styles.badge, { backgroundColor: getStatusStyle(payoutStatusKey(tx.payoutStatus)).bg }]}>
+                      <Text style={[styles.badgeText, { color: getStatusStyle(payoutStatusKey(tx.payoutStatus)).color }]}>{payoutStatusLabel(tx.payoutStatus)}</Text>
                     </View>
                   </View>
                 </View>
