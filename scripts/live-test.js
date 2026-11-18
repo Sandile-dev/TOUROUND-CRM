@@ -221,6 +221,34 @@ async function enrichAmounts(reservations, token) {
       : fail('GET /business/profile/{id}', prof.text.slice(0, 100));
   }
 
+  // Bank account details (Payments > My Account). Same calls as paymentService
+  // getPaymentDetails / updatePaymentDetails. Account numbers are never printed.
+  console.log('\n══ BANK DETAILS ══');
+  {
+    const BANK_KEYS = ['bankName', 'accountHolderName', 'accountNumber', 'branchCode'];
+    const pickBank = (d) => Object.fromEntries(BANK_KEYS.map(k => [k, d?.[k] ?? '']));
+    const before = await req('GET', '/business/profile/payment-details', { token: bt });
+    before.ok
+      ? pass('GET /business/profile/payment-details', `bankName=${before.data?.bankName ?? 'null'} accountNumber=${before.data?.accountNumber ? 'set' : 'null'}`)
+      : fail('GET /business/profile/payment-details', `${before.status} ${before.text.slice(0, 100)}`);
+    const original = pickBank(before.data);
+    const testBank = { bankName: 'LiveTest Bank', accountHolderName: 'Live Test Holder', accountNumber: '62000000001', branchCode: '250655' };
+    const put = await req('PUT', '/business/profile/payment-details', { token: bt, body: testBank });
+    put.ok
+      ? pass('PUT /business/profile/payment-details', `status=${put.status}`)
+      : fail('PUT /business/profile/payment-details', `${put.status} ${put.text.slice(0, 100)}`);
+    const after = await req('GET', '/business/profile/payment-details', { token: bt });
+    const mismatched = BANK_KEYS.filter(k => after.data?.[k] !== testBank[k]);
+    after.ok && mismatched.length === 0
+      ? pass('Bank details persisted on re-read', 'all 4 fields match')
+      : fail('Bank details persisted on re-read', `mismatched=${mismatched.join(',') || after.status}`);
+    // Put the account's original values back.
+    const restore = await req('PUT', '/business/profile/payment-details', { token: bt, body: original });
+    restore.ok
+      ? pass('Restore original bank details', `bankName=${restore.data?.bankName || 'empty'}`)
+      : fail('Restore original bank details', `${restore.status} ${restore.text.slice(0, 100)}`);
+  }
+
   // ─────────────────────────────────────────────
   // 9. SERVICES (slots)
   // ─────────────────────────────────────────────

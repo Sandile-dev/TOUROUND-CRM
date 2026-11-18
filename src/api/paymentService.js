@@ -62,6 +62,18 @@ const paymentService = {
   getCommissionOwed: async () => {
     try { const r = await apiClient.get('/v1/wallet/commission-owed'); return r.data; } catch (e) { throw handleApiError(e); }
   },
+  // Business payout bank details (BusinessController /business/profile/payment-details).
+  // GET returns the BusinessUserDTO; PUT takes a partial JSON BusinessUserDTO and only
+  // updates the provided bank fields: bankName, accountHolderName, accountNumber, branchCode.
+  getPaymentDetails: async () => {
+    try { const r = await apiClient.get('/business/profile/payment-details'); return r.data; } catch (e) { throw handleApiError(e); }
+  },
+  updatePaymentDetails: async ({ bankName, accountHolderName, accountNumber, branchCode }) => {
+    try {
+      const r = await apiClient.put('/business/profile/payment-details', { bankName, accountHolderName, accountNumber, branchCode });
+      return r.data;
+    } catch (e) { throw handleApiError(e); }
+  },
   settleCommission: async (amount) => {
     try { const r = await apiClient.post(`/v1/wallet/settle-commission?amount=${amount}`); return r.data; } catch (e) { throw handleApiError(e); }
   },

@@ -8,6 +8,9 @@ import businessService from '../api/businessService';
 import AppIcon from '../components/AppIcon';
 import { enrichReservationAmounts } from '../utils/enrichReservations';
 import useHeaderInsets from '../hooks/useHeaderInsets';
+import { useAlert } from '../context/AlertContext';
+import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
+import storage from '../utils/storage';
 import { resolveCategory, usesRoomBookings, usesTableReservations } from '../constants/attractions';
 
 // Fee structure (mirrors backend PaymentServiceImpl):
@@ -41,6 +44,7 @@ export default function PaymentsScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation();
   const { headerPaddingTop, insets } = useHeaderInsets();
+  const { showSuccess, showError } = useAlert();
   const attractionId = resolveCategory(user?.attraction);
   const hasReservations = attractionId && !usesRoomBookings(attractionId);
   const TABS = hasReservations ? ALL_TABS : ALL_TABS.filter(t => t.id !== 'cash');
@@ -68,8 +72,29 @@ export default function PaymentsScreen() {
     bankName: '', accountNumber: '', accountHolder: '',
     branchCode: '', accountType: 'cheque', payoutFrequency: 'weekly',
   });
+  const [savingSettings, setSavingSettings] = useState(false);
+  // accountType / payoutFrequency have no backend field (BusinessUserDTO only has
+  // bankName, accountHolderName, accountNumber, branchCode), so they are kept on device.
+  const payoutPrefsKey = `crm_payout_prefs_${user?.id}`;
 
   useEffect(() => { if (user?.id) loadPaymentData(); else setLoading(false); }, [user, period]);
+  useEffect(() => { if (user?.id) loadPaymentSettings(); }, [user?.id]);
+
+  const loadPaymentSettings = async () => {
+    let details = null;
+    let prefs = {};
+    try { details = await paymentService.getPaymentDetails(); } catch {}
+    try { prefs = JSON.parse((await storage.getItem(payoutPrefsKey)) || '{}') || {}; } catch {}
+    setSettingsForm(prev => ({
+      ...prev,
+      bankName: details?.bankName || '',
+      accountHolder: details?.accountHolderName || '',
+      accountNumber: details?.accountNumber || '',
+      branchCode: details?.branchCode || '',
+      accountType: prefs.accountType || prev.accountType,
+      payoutFrequency: prefs.payoutFrequency || prev.payoutFrequency,
+    }));
+  };
 
   const loadPaymentData = async () => {
     setLoading(true);
@@ -294,11 +319,35 @@ export default function PaymentsScreen() {
     ]);
   };
 
-  const handleSaveSettings = () => {
-    if (!settingsForm.bankName || !settingsForm.accountNumber || !settingsForm.accountHolder) {
-      Alert.alert('Error', 'Please fill in all required fields'); return;
+  const handleSaveSettings = async () => {
+    const bankName = settingsForm.bankName.trim();
+    const accountHolderName = settingsForm.accountHolder.trim();
+    const accountNumber = settingsForm.accountNumber.replace(/\s/g, '');
+    const branchCode = settingsForm.branchCode.replace(/\s/g, '');
+    if (!bankName || !accountNumber || !accountHolderName) {
+      showError('Error', 'Please fill in Bank Name, Account Holder and Account Number.'); return;
     }
-    Alert.alert('Saved', 'Payment settings saved successfully!');
+    if (!/^\d+$/.test(accountNumber) || (branchCode && !/^\d+$/.test(branchCode))) {
+      showError('Error', 'Account number and branch code may only contain digits.'); return;
+    }
+    setSavingSettings(true);
+    try {
+      const saved = await paymentService.updatePaymentDetails({ bankName, accountHolderName, accountNumber, branchCode });
+      await storage.setItem(payoutPrefsKey, JSON.stringify({
+        accountType: settingsForm.accountType,
+        payoutFrequency: settingsForm.payoutFrequency,
+      }));
+      setSettingsForm(prev => ({
+        ...prev,
+        bankName: saved?.bankName ?? bankName,
+        accountHolder: saved?.accountHolderName ?? accountHolderName,
+        accountNumber: saved?.accountNumber ?? accountNumber,
+        branchCode: saved?.branchCode ?? branchCode,
+      }));
+      showSuccess('Saved', 'Payment settings saved successfully!');
+    } catch (err) {
+      showError('Error', err.message || 'Failed to save payment settings.');
+    } finally { setSavingSettings(false); }
   };
 
   const onRefresh = () => { setRefreshing(true); loadPaymentData(); };
@@ -621,8 +670,8 @@ export default function PaymentsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={handleSaveSettings}>
-          <Text style={styles.primaryBtnText}>Save Payment Settings</Text>
+        <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={handleSaveSettings} disabled={savingSettings}>
+          <Text style={styles.primaryBtnText}>{savingSettings ? 'Saving...' : 'Save Payment Settings'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -675,13 +724,13 @@ export default function PaymentsScreen() {
       {loading ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, paddingBottom: 30 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        <KeyboardAwareScroll showsVerticalScrollIndicator contentContainerStyle={{ padding: 12, paddingBottom: activeTab === 'settings' ? 120 : 30 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'transactions' && renderTransactions()}
           {activeTab === 'cash' && renderCash()}
           {activeTab === 'payouts' && renderPayouts()}
           {activeTab === 'settings' && renderSettings()}
-        </ScrollView>
+        </KeyboardAwareScroll>
       )}
 
       {/* Record Cash Payment Modal */}
