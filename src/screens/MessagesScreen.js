@@ -334,7 +334,7 @@ export default function MessagesScreen() {
         >
           <ScrollView
             style={styles.modalContent}
-            contentContainerStyle={{ paddingBottom: 8 }}
+            contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >

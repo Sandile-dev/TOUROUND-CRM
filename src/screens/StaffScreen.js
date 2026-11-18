@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, RefreshControl, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, RefreshControl, Modal, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
 import AppIcon from '../components/AppIcon';
@@ -32,7 +32,7 @@ export default function StaffScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { headerPaddingTop } = useHeaderInsets();
+  const { headerPaddingTop, insets } = useHeaderInsets();
   // Only the business owner (not a staff account) can manage staff.
   const isOwner = !user?.isStaff;
 
@@ -187,7 +187,7 @@ export default function StaffScreen() {
   const renderAddStaffModal = () => (
     <Modal visible={showForm} animationType="slide" onRequestClose={closeAddForm} presentationStyle="pageSheet">
       <View style={styles.screen}>
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, { paddingTop: Platform.OS === 'ios' ? 16 : headerPaddingTop }]}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: colors.primary }]} onPress={closeAddForm}>
             <AppIcon name="close" size={20} color="#fff" />
           </TouchableOpacity>
@@ -197,7 +197,7 @@ export default function StaffScreen() {
           <View style={styles.backBtn} />
         </View>
 
-        <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+        <KeyboardAwareScroll style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16) + 60 }}>
           <Text style={styles.fieldLabel}>First Name</Text>
           <TextInput style={styles.input} placeholder="e.g. Thandi" placeholderTextColor="#9ca3af" value={form.name} onChangeText={t => setForm({ ...form, name: t })} />
           <Text style={styles.fieldLabel}>Surname</Text>
@@ -236,7 +236,7 @@ export default function StaffScreen() {
   const renderRolesModal = () => (
     <Modal visible={showRolesModal} animationType="slide" transparent onRequestClose={() => setShowRolesModal(false)}>
       <View style={styles.rolesOverlay}>
-        <View style={styles.rolesSheet}>
+        <View style={[styles.rolesSheet, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <View style={styles.rolesSheetHandle} />
           <View style={styles.rolesSheetHeader}>
             <Text style={styles.rolesSheetTitle}>Staff Roles & Responsibilities</Text>

@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, StyleSheet, Alert, RefreshControl, Modal, Platform, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, StyleSheet, Alert, RefreshControl, Modal, Platform, Image, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import KeyboardAwareScroll from '../components/KeyboardAwareScroll';
@@ -29,7 +29,7 @@ const EVENT_CATEGORIES = [
 export default function TicketsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
-  const { headerPaddingTop } = useHeaderInsets();
+  const { headerPaddingTop, insets } = useHeaderInsets();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('events');
   const [events, setEvents] = useState([]);
@@ -696,8 +696,8 @@ export default function TicketsScreen() {
         transparent={true}
         onRequestClose={() => setTicketModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Ticket Categories</Text>
               <TouchableOpacity onPress={() => setTicketModalVisible(false)}>
@@ -758,7 +758,7 @@ export default function TicketsScreen() {
               <Text style={styles.submitBtnText}>{savingCategories ? 'Saving...' : 'Save Categories'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Ticket-category dropdown Modal (for the Add Ticket Categories modal) */}

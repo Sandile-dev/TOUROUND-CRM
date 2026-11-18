@@ -12,7 +12,7 @@ export default function CustomersScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { headerPaddingTop } = useHeaderInsets();
+  const { headerPaddingTop, insets } = useHeaderInsets();
   const attractionId = resolveCategory(user?.attraction);
   const [activeTab, setActiveTab] = useState('customers');
   const [customers, setCustomers] = useState([]);
@@ -217,7 +217,7 @@ export default function CustomersScreen() {
       {/* Customer detail modal */}
       <Modal visible={!!detailCustomer} transparent animationType="slide" onRequestClose={() => setDetailCustomer(null)}>
         <View style={styles.detailOverlay}>
-          <View style={styles.detailSheet}>
+          <View style={[styles.detailSheet, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
             <View style={styles.detailHeader}>
               <Text style={styles.detailTitle}>Customer Details</Text>
               <TouchableOpacity onPress={() => setDetailCustomer(null)}>

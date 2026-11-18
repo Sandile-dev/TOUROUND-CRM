@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, Alert, ActivityIndicator, Share } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, Alert, ActivityIndicator, Share, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -40,7 +40,7 @@ export default function PaymentsScreen() {
   const { user } = useContext(AuthContext);
   const { colors } = useTheme();
   const navigation = useNavigation();
-  const { headerPaddingTop } = useHeaderInsets();
+  const { headerPaddingTop, insets } = useHeaderInsets();
   const attractionId = resolveCategory(user?.attraction);
   const hasReservations = attractionId && !usesRoomBookings(attractionId);
   const TABS = hasReservations ? ALL_TABS : ALL_TABS.filter(t => t.id !== 'cash');
@@ -686,8 +686,8 @@ export default function PaymentsScreen() {
 
       {/* Record Cash Payment Modal */}
       <Modal visible={showCashModal} transparent animationType="slide" onRequestClose={() => setShowCashModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 16) + 20 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Record a Payment</Text>
               <TouchableOpacity onPress={() => setShowCashModal(false)}><AppIcon name="close" size={22} color="#6b7280" /></TouchableOpacity>
@@ -711,7 +711,7 @@ export default function PaymentsScreen() {
               <Text style={[styles.primaryBtnText, { color: colors.primary }]}>{submitting ? 'Working...' : 'Send Online Payment Link (Ozow)'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
