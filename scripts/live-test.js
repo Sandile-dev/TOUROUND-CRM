@@ -245,6 +245,28 @@ async function enrichAmounts(reservations, token) {
   }
 
   // ─────────────────────────────────────────────
+  // 11. SUPPORT ENQUIRIES
+  // ─────────────────────────────────────────────
+  console.log('\n══ SUPPORT ══');
+  {
+    const created = await req('POST', '/support', { token: bt, body: { subject: 'Live test enquiry', message: 'Automated live-test enquiry, please ignore.', type: 'ENQUIRY' } });
+    created.ok
+      ? pass('POST /support', `id=${created.data?.id} status=${created.data?.status} type=${created.data?.type}`)
+      : fail('POST /support', `${created.status} ${created.text.slice(0, 100)}`);
+    const mine = await req('GET', '/support/my', { token: bt });
+    mine.ok
+      ? pass('GET /support/my', `count=${arr(mine.data).length}`)
+      : fail('GET /support/my', `${mine.status} ${mine.text.slice(0, 100)}`);
+    const id = created.data?.id ?? arr(mine.data)[0]?.id;
+    if (id != null) {
+      const one = await req('GET', `/support/${id}`, { token: bt });
+      one.ok
+        ? pass('GET /support/{id}', `status=${one.data?.status}`)
+        : fail('GET /support/{id}', `${one.status} ${one.text.slice(0, 100)}`);
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // SUMMARY
   // ─────────────────────────────────────────────
   const passed = results.filter(r => r.ok).length;

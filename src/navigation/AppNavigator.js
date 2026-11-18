@@ -35,6 +35,7 @@ import TicketsScreen from '../screens/TicketsScreen';
 import PaymentsScreen from '../screens/PaymentsScreen';
 import PromotionsScreen from '../screens/PromotionsScreen';
 import StaffScreen from '../screens/StaffScreen';
+import SupportScreen from '../screens/SupportScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +80,7 @@ function MoreStack() {
       <MoreStackNav.Screen name="Payments" component={PaymentsScreen} />
       <MoreStackNav.Screen name="Promotions" component={PromotionsScreen} />
       <MoreStackNav.Screen name="Staff" component={StaffScreen} />
+      <MoreStackNav.Screen name="Support" component={SupportScreen} />
       <MoreStackNav.Screen name="Notifications" component={NotificationsScreen} />
       <MoreStackNav.Screen name="Settings" component={SettingsScreen} />
       <MoreStackNav.Screen name="AppSettings" component={AppSettingsScreen} />

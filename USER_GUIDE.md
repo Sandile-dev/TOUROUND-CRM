@@ -422,6 +422,20 @@ manage your business profile.
 
 ---
 
+## Support enquiries and complaints
+
+Open **More → Support** (business owner accounts) to contact the Touround admin
+team.
+
+- The screen lists **My enquiries** with subject, type, status badge and date.
+  Pull down to refresh.
+- Tap **+** to start a new request: choose **Enquiry** or **Complaint**, enter a
+  subject and a message, then tap **Send**. Admins are notified straight away.
+- Tap any enquiry to read your message and the admin's response. You are
+  notified when an enquiry is resolved.
+
+---
+
 ## 21. App settings
 
 Open **More → App Settings** to personalise the app.

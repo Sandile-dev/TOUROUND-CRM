@@ -31,6 +31,7 @@ const menuSections = [
     title: 'Account',
     items: [
       { screen: 'Settings', icon: 'person-circle-outline', label: 'Profile Settings', ownerOnly: true },
+      { screen: 'Support', icon: 'help-buoy-outline', label: 'Support', ownerOnly: true },
       { screen: 'AppSettings', icon: 'settings-outline', label: 'App Settings' },
     ],
   },
